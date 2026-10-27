@@ -33,16 +33,7 @@ import { ModalityOpportunitiesPage } from '@/components/publico/ModalityOpportun
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
   const { theme } = useThemeStore()
-  const {
-    logout,
-    endSession,
-    loginWithCredentials,
-    loginWithMicrosoft,
-    isLoggingIn,
-    loginError,
-    microsoftError,
-    isRestoringSession,
-  } = useAuth()
+  const { logout, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
   const homePath = currentUser ? homePathFor(currentUser.institutionalRoles) : '/login'
   const location = useLocation()
 
@@ -69,7 +60,7 @@ export default function App() {
   }
 
   return (
-    <AuthFlowContext.Provider value={{ loginWithCredentials, endSession, isLoggingIn, loginError }}>
+    <AuthFlowContext.Provider value={{ loginWithMicrosoft, endSession, loginError: microsoftError }}>
       <Routes>
         {/* Public institutional prototype */}
         <Route path="/" element={<InstitutionalHome />} />
@@ -83,10 +74,7 @@ export default function App() {
             isAuthenticated
               ? <Navigate to={homePath} replace />
               : <LoginScreen
-                  onCredentialsLogin={loginWithCredentials}
-                  onMicrosoftLogin={loginWithMicrosoft}
-                  isLoggingIn={isLoggingIn}
-                  loginError={loginError}
+                  onMicrosoftLogin={() => void loginWithMicrosoft()}
                   microsoftError={microsoftError}
                 />
           }

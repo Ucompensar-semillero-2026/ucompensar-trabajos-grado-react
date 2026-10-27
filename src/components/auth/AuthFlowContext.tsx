@@ -1,15 +1,10 @@
 import { createContext, useContext } from 'react'
-import type { User } from '@/types'
-
-export interface LoginOptions {
-  redirectToDashboard?: boolean
-}
 
 export interface AuthFlowContextValue {
-  loginWithCredentials: (email: string, password: string, options?: LoginOptions) => Promise<User | null>
+  /** Lleva a Microsoft y, al volver, navega a `returnTo` (ruta interna). */
+  loginWithMicrosoft: (returnTo?: string) => Promise<void>
   /** Cierra la sesión sin navegar. Devuelve un mensaje de error si el servidor no confirmó el cierre. */
   endSession: () => Promise<string | null>
-  isLoggingIn: boolean
   loginError: string | null
 }
 

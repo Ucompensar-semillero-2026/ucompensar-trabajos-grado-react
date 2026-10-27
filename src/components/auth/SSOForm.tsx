@@ -2,10 +2,6 @@ import { useState } from 'react'
 import { isMicrosoftLoginConfigured } from '@/config/msal'
 import { cn } from '@/utils/cn'
 
-interface SSOFormProps {
-  onSwitchToCredentials: () => void
-}
-
 function MicrosoftIcon() {
   return (
     <div className="grid grid-cols-2 gap-[1.5px] w-[18px] h-[18px] flex-shrink-0">
@@ -17,12 +13,14 @@ function MicrosoftIcon() {
   )
 }
 
-interface SSOFormFullProps extends SSOFormProps {
+interface SSOFormProps {
   onMicrosoftLogin: () => void
   error?: string | null
 }
 
-export function SSOForm({ onSwitchToCredentials, onMicrosoftLogin, error }: SSOFormFullProps) {
+// Único acceso a la plataforma: la contraseña se escribe solo en la página
+// de Microsoft. Lo usan /login y el diálogo de postulación del catálogo.
+export function SSOForm({ onMicrosoftLogin, error }: SSOFormProps) {
   const [isRedirecting, setIsRedirecting] = useState(false)
   const disabled = !isMicrosoftLoginConfigured || isRedirecting
 
@@ -35,7 +33,7 @@ export function SSOForm({ onSwitchToCredentials, onMicrosoftLogin, error }: SSOF
   return (
     <div>
       {error && (
-        <p className="text-[11.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+        <p role="alert" className="text-[11.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
           {error}
         </p>
       )}
@@ -73,18 +71,8 @@ export function SSOForm({ onSwitchToCredentials, onMicrosoftLogin, error }: SSOF
           <path d="M8 7v5M8 5v1" stroke="var(--color-secondary)" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
         <p className="text-[10.5px] text-[var(--color-secondary)] leading-[1.5]">
-          Usa tu cuenta institucional de Microsoft (Teams, Outlook). Tu contraseña se escribe
-          solo en la página de Microsoft, nunca en esta plataforma.
+          Usa tu correo institucional de Microsoft.
         </p>
-      </div>
-
-      <div className="mt-4 text-center">
-        <button
-          onClick={onSwitchToCredentials}
-          className="text-[11px] py-1.5 px-4 border border-neutral-border rounded-lg bg-white text-neutral-muted cursor-pointer hover:border-primary hover:text-primary transition-colors"
-        >
-          Tengo una cuenta sin Microsoft
-        </button>
       </div>
     </div>
   )

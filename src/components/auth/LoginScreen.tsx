@@ -1,31 +1,14 @@
-import { useState } from 'react'
 import { LoginPanel } from './LoginPanel'
 import { SSOForm } from './SSOForm'
-import { CredentialsForm } from './CredentialsForm'
 import { Logo } from '@/components/ui/Logo'
-import { cn } from '@/utils/cn'
-import { isMicrosoftLoginConfigured } from '@/config/msal'
-
-type TabType = 'sso' | 'credentials'
 
 interface LoginScreenProps {
-  onCredentialsLogin: (email: string, password: string) => void
   onMicrosoftLogin: () => void
-  isLoggingIn?: boolean
-  loginError?: string | null
   microsoftError?: string | null
 }
 
-export function LoginScreen({
-  onCredentialsLogin,
-  onMicrosoftLogin,
-  isLoggingIn,
-  loginError,
-  microsoftError,
-}: LoginScreenProps) {
-  // Microsoft por defecto cuando está configurado en este entorno
-  // (VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID).
-  const [activeTab, setActiveTab] = useState<TabType>(isMicrosoftLoginConfigured ? 'sso' : 'credentials')
+// Solo Microsoft Entra ID: la plataforma no maneja contraseñas propias.
+export function LoginScreen({ onMicrosoftLogin, microsoftError }: LoginScreenProps) {
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[var(--color-bg)] transition-colors duration-300 md:flex-row">
@@ -49,42 +32,12 @@ export function LoginScreen({
               Bienvenido/a
             </h2>
             <p className="text-[14px] leading-relaxed text-[var(--color-text-muted)]">
-              Accede con tu cuenta institucional
-              <br />o tus credenciales UCompensar
+              Accede con tu cuenta institucional de Microsoft
             </p>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-[var(--color-bg)] rounded-xl p-1 mb-6 border border-[var(--color-border)]">
-            {(['sso', 'credentials'] as TabType[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'flex-1 py-2.5 rounded-lg text-[13px] font-semibold transition-all duration-200 cursor-pointer border-none',
-                  activeTab === tab
-                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
-                    : 'text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]/50'
-                )}
-              >
-                {tab === 'sso' ? 'Microsoft SSO' : 'Credenciales'}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className="animate-in [&_a]:text-[12px] [&_input]:min-h-11 [&_input]:text-[14px] [&_label]:text-[11px] [&_p]:text-[12px] [&_button]:text-[14px]"
-            key={activeTab}
-          >
-            {activeTab === 'sso' ? (
-              <SSOForm
-                onSwitchToCredentials={() => setActiveTab('credentials')}
-                onMicrosoftLogin={onMicrosoftLogin}
-                error={microsoftError}
-              />
-            ) : (
-              <CredentialsForm onSubmit={onCredentialsLogin} isLoading={isLoggingIn} error={loginError} />
-            )}
+          <div className="animate-in [&_p]:text-[12px] [&_button]:text-[14px]">
+            <SSOForm onMicrosoftLogin={onMicrosoftLogin} error={microsoftError} />
           </div>
         </div>
 

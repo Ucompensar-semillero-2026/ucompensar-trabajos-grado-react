@@ -5,11 +5,9 @@ import type { BackendUser } from '@/types/api'
 import type { AuthMethod } from '@/types'
 import { ApiError } from '@/services/http'
 import { authApi } from '@/services/auth.service'
-import type { LoginOptions } from '@/components/auth/AuthFlowContext'
 import {
   clearMicrosoftSession,
   getMsalRedirectOutcome,
-  isMicrosoftLoginConfigured,
   loginRequest,
   msalInstance,
 } from '@/config/msal'
@@ -43,8 +41,8 @@ function toStoreUser(user: BackendUser, institutionalRoles: InstitutionalRole[],
 }
 
 // El backend sincroniza los App Roles de Entra ID en cada login con
-// Microsoft (`institutional_roles`). Una cuenta solo de credenciales no
-// los tiene: su rol institucional se deduce del rol de la BD.
+// Microsoft (`institutional_roles`). El respaldo por rol de la BD solo
+// aplica a cuentas antiguas sin Microsoft vinculado.
 function resolveInstitutionalRoles(user: BackendUser): { roles: InstitutionalRole[]; authMethod: AuthMethod } {
   const fromEntra = parseInstitutionalRoles(user.institutional_roles)
   if (fromEntra.length > 0) return { roles: fromEntra, authMethod: 'sso' }
@@ -60,6 +58,14 @@ function describeMicrosoftError(code: string | null, message: string | null): st
   return 'No se pudo iniciar sesión con Microsoft. Intenta de nuevo.'
 }
 
+// A dónde volver después de Microsoft (ej. la oferta a la que el estudiante
+// se estaba postulando). Viaja en el `state` del redirect; solo se aceptan
+// rutas internas, para no convertir el login en un redirect abierto.
+function safeReturnPath(state: string | undefined): string | null {
+  if (!state || !state.startsWith('/') || state.startsWith('//') || state.startsWith('/\\')) return null
+  return state
+}
+
 const SESSION_FLAG_KEY = 'ucomp_has_session'
 
 // El resultado del redirect se consume una sola vez. Sin esto, el doble
@@ -67,15 +73,13 @@ const SESSION_FLAG_KEY = 'ucomp_has_session'
 let microsoftRedirectConsumed = false
 
 export function useAuth() {
-  const { loginSuccess, logout: storeLogout, currentUser } = useAppStore()
+  const { loginSuccess, logout: storeLogout } = useAppStore()
   const navigate = useNavigate()
   // El efecto de restaurar sesión debe correr UNA vez al montar. `navigate`
   // cambia de identidad en cada navegación (React Router), así que no puede
   // ir en sus dependencias: re-dispararía /auth/refresh en cada cambio de ruta.
   const navigateRef = useRef(navigate)
   navigateRef.current = navigate
-  const [isLoggingIn, setIsLoggingIn] = useState(false)
-  const [loginError, setLoginError] = useState<string | null>(null)
   const [microsoftError, setMicrosoftError] = useState<string | null>(null)
   // El access_token vive solo en memoria (nunca en localStorage, ver
   // app.store.ts) a propósito -- un XSS no puede robarlo de ahí porque no
@@ -115,7 +119,7 @@ export function useAuth() {
           const user = await authApi.me(tokens.access_token)
           localStorage.setItem(SESSION_FLAG_KEY, 'true')
           loginSuccess(toStoreUser(user, roles, 'sso'), tokens.access_token)
-          navigateRef.current(homePathFor(roles), { replace: true })
+          navigateRef.current(safeReturnPath(outcome.result?.state) ?? homePathFor(roles), { replace: true })
         })
         .catch((err) => {
           if (err instanceof ApiError && err.status === 403) {
@@ -127,7 +131,7 @@ export function useAuth() {
           const notConfigured = err instanceof ApiError && err.status === 503
           setMicrosoftError(
             notReady || notConfigured
-              ? 'Tu cuenta de Microsoft es válida, pero el servidor todavía no acepta este inicio de sesión. Usa la pestaña Credenciales mientras tanto.'
+              ? 'Tu cuenta de Microsoft es válida, pero el servidor no tiene configurado el inicio de sesión con Microsoft.'
               : err instanceof ApiError
                 ? err.message
                 : 'No se pudo conectar con el servidor'
@@ -157,7 +161,7 @@ export function useAuth() {
         }
       })
       .catch(() => {
-        // Sin cookie o ya expiró (7 días) -- limpiar bandera y dejar deslogueado
+        // Sin cookie o ya expiró (8 h para Microsoft) -- limpiar bandera y dejar deslogueado
         localStorage.removeItem(SESSION_FLAG_KEY)
       })
       .finally(() => {
@@ -168,39 +172,17 @@ export function useAuth() {
     }
   }, [loginSuccess])
 
-  const loginWithMicrosoft = useCallback(async () => {
+  // `returnTo`: ruta interna a la que volver tras Microsoft (por defecto, el
+  // panel del rol). Navega fuera de la app; la vuelta la resuelve
+  // bootstrapMsal() en main.tsx antes de pintar.
+  const loginWithMicrosoft = useCallback(async (returnTo?: string) => {
     setMicrosoftError(null)
     try {
-      // Navega fuera de la app; vuelve a redirectUri y lo resuelve
-      // bootstrapMsal() en main.tsx antes de pintar.
-      await msalInstance.loginRedirect(loginRequest)
+      await msalInstance.loginRedirect({ ...loginRequest, state: safeReturnPath(returnTo) ?? undefined })
     } catch {
       setMicrosoftError('No se pudo abrir el inicio de sesión de Microsoft.')
     }
   }, [])
-
-  const loginWithCredentials = useCallback(
-    async (email: string, password: string, options: LoginOptions = {}) => {
-      setIsLoggingIn(true)
-      setLoginError(null)
-      try {
-        const tokens = await authApi.login(email, password)
-        const user = await authApi.me(tokens.access_token)
-        const { roles, authMethod } = resolveInstitutionalRoles(user)
-        const authenticatedUser = toStoreUser(user, roles, authMethod)
-        localStorage.setItem(SESSION_FLAG_KEY, 'true')
-        loginSuccess(authenticatedUser, tokens.access_token)
-        if (options.redirectToDashboard !== false) navigate(homePathFor(roles))
-        return authenticatedUser
-      } catch (err) {
-        setLoginError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor')
-        return null
-      } finally {
-        setIsLoggingIn(false)
-      }
-    },
-    [loginSuccess, navigate]
-  )
 
   // Cierra la sesión sin navegar a /login (la usa el flujo de postulación). Solo
   // limpia el estado local si el servidor confirmó la invalidación del refresh_token.
@@ -210,33 +192,27 @@ export function useAuth() {
     } catch (err) {
       return err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor'
     }
-    const wasMicrosoft = currentUser?.authMethod === 'sso'
     localStorage.removeItem(SESSION_FLAG_KEY)
     storeLogout()
-    if (wasMicrosoft) clearMicrosoftSession().catch(() => {})
+    clearMicrosoftSession().catch(() => {})
     return null
-  }, [currentUser, storeLogout])
+  }, [storeLogout])
 
   const logout = useCallback(() => {
-    const wasMicrosoft =
-      currentUser?.authMethod === 'sso' || (isMicrosoftLoginConfigured && Boolean(msalInstance.getActiveAccount()))
     localStorage.removeItem(SESSION_FLAG_KEY)
     storeLogout()
     navigate('/login')
-    if (wasMicrosoft) clearMicrosoftSession().catch(() => {})
+    clearMicrosoftSession().catch(() => {})
     authApi.logout().catch(() => {
       // Aunque falle el aviso al backend, la sesión local ya quedó
       // cerrada -- no bloquear al usuario por esto.
     })
-  }, [currentUser, storeLogout, navigate])
+  }, [storeLogout, navigate])
 
   return {
     logout,
     endSession,
-    loginWithCredentials,
     loginWithMicrosoft,
-    isLoggingIn,
-    loginError,
     microsoftError,
     isRestoringSession,
   }

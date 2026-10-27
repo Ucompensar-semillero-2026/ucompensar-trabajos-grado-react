@@ -4,19 +4,32 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
+import type { User } from '@/types'
 import { useAuth } from './useAuth'
 
 vi.mock('@/services/auth.service', () => ({
-  authApi: { login: vi.fn(), me: vi.fn(), refresh: vi.fn(), logout: vi.fn() },
+  authApi: { microsoftLogin: vi.fn(), me: vi.fn(), refresh: vi.fn(), logout: vi.fn() },
+}))
+
+vi.mock('@/config/msal', () => ({
+  isMicrosoftLoginConfigured: true,
+  loginRequest: { scopes: ['openid', 'profile', 'email'], prompt: 'select_account' },
+  msalInstance: { loginRedirect: vi.fn(async () => {}) },
+  clearMicrosoftSession: vi.fn(async () => {}),
+  getMsalRedirectOutcome: () => ({ result: null, errorCode: null, errorMessage: null }),
 }))
 
 import { authApi } from '@/services/auth.service'
+import { clearMicrosoftSession, msalInstance } from '@/config/msal'
 
-const backendUser = {
-  public_id: 'student-public-id',
-  full_name: 'Estudiante de Prueba',
-  email: 'estudiante@ucompensar.edu.co',
-  role: { name: 'estudiante' },
+const student: User = {
+  id: 'student-public-id',
+  name: 'Estudiante de Prueba',
+  initials: 'EP',
+  email: 'estudiante1@ucompensar.edu.co',
+  role: 'estudiante',
+  institutionalRoles: ['Estudiante'],
+  authMethod: 'sso',
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -27,11 +40,14 @@ function renderAuth() {
   return renderHook(() => ({ auth: useAuth(), path: useLocation().pathname }), { wrapper })
 }
 
+function signIn() {
+  localStorage.setItem('ucomp_has_session', 'true')
+  useAppStore.getState().loginSuccess(student, 'token')
+}
+
 describe('useAuth', () => {
   beforeEach(() => {
     localStorage.clear()
-    vi.mocked(authApi.login).mockResolvedValue({ access_token: 'token', token_type: 'bearer' })
-    vi.mocked(authApi.me).mockResolvedValue(backendUser as never)
     vi.mocked(authApi.logout).mockResolvedValue(undefined)
   })
 
@@ -42,38 +58,35 @@ describe('useAuth', () => {
     useAppStore.setState({ currentUser: null, isAuthenticated: false, accessToken: null })
   })
 
-  it('normal login keeps the session and navigates to the dashboard', async () => {
+  it('loginWithMicrosoft redirects to Microsoft carrying the internal return path', async () => {
     const { result } = renderAuth()
     await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
 
-    await act(async () => { await result.current.auth.loginWithCredentials('a@b.co', 'x') })
+    await act(async () => { await result.current.auth.loginWithMicrosoft('/proyectos-de-grado/oferta-1?postular=1') })
 
-    expect(result.current.path).toBe('/dashboard')
-    expect(useAppStore.getState().isAuthenticated).toBe(true)
-    expect(localStorage.getItem('ucomp_has_session')).toBe('true')
+    expect(msalInstance.loginRedirect).toHaveBeenCalledWith(expect.objectContaining({ state: '/proyectos-de-grado/oferta-1?postular=1' }))
   })
 
-  it('login with redirectToDashboard:false authenticates without navigating', async () => {
+  it.each(['https://evil.example', '//evil.example', '/\\evil.example'])('ignores an external return path (%s)', async (returnTo) => {
     const { result } = renderAuth()
     await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
 
-    let user: unknown
-    await act(async () => { user = await result.current.auth.loginWithCredentials('a@b.co', 'x', { redirectToDashboard: false }) })
+    await act(async () => { await result.current.auth.loginWithMicrosoft(returnTo) })
 
-    expect(user).toMatchObject({ id: 'student-public-id' })
-    expect(result.current.path).toBe('/proyectos-de-grado')
+    expect(msalInstance.loginRedirect).toHaveBeenCalledWith(expect.objectContaining({ state: undefined }))
   })
 
-  it('endSession invalidates the server session, clears memory and the local flag, without navigating', async () => {
+  it('endSession invalidates the server session, clears memory, the local flag and the Microsoft cache, without navigating', async () => {
     const { result } = renderAuth()
     await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
-    await act(async () => { await result.current.auth.loginWithCredentials('a@b.co', 'x', { redirectToDashboard: false }) })
+    act(() => signIn())
 
     let error: string | null = 'pending'
     await act(async () => { error = await result.current.auth.endSession() })
 
     expect(error).toBeNull()
     expect(authApi.logout).toHaveBeenCalledTimes(1)
+    expect(clearMicrosoftSession).toHaveBeenCalledTimes(1)
     expect(useAppStore.getState()).toMatchObject({ isAuthenticated: false, currentUser: null, accessToken: null })
     expect(localStorage.getItem('ucomp_has_session')).toBeNull()
     expect(result.current.path).toBe('/proyectos-de-grado')
@@ -83,7 +96,7 @@ describe('useAuth', () => {
     vi.mocked(authApi.logout).mockRejectedValueOnce(new ApiError(500, 'Error del servidor'))
     const { result } = renderAuth()
     await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
-    await act(async () => { await result.current.auth.loginWithCredentials('a@b.co', 'x', { redirectToDashboard: false }) })
+    act(() => signIn())
 
     let error: string | null = null
     await act(async () => { error = await result.current.auth.endSession() })
@@ -91,5 +104,17 @@ describe('useAuth', () => {
     expect(error).toBe('Error del servidor')
     expect(useAppStore.getState().isAuthenticated).toBe(true)
     expect(localStorage.getItem('ucomp_has_session')).toBe('true')
+  })
+
+  it('logout clears the session and goes to /login', async () => {
+    const { result } = renderAuth()
+    await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
+    act(() => signIn())
+
+    act(() => result.current.auth.logout())
+
+    expect(result.current.path).toBe('/login')
+    expect(useAppStore.getState().isAuthenticated).toBe(false)
+    expect(clearMicrosoftSession).toHaveBeenCalledTimes(1)
   })
 })

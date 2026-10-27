@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card } from '@/components/ui'
 import { InstitutionalHeader } from './InstitutionalHeader'
 import { OpportunityDetails } from './OpportunityDetails'
@@ -11,7 +11,14 @@ import { modalityRouteSlug, projectModalities, projectOffers } from './projectCa
 
 export function ProjectDetail() {
   const { offerId } = useParams<{ offerId: string }>()
-  const [showApplicationFlow, setShowApplicationFlow] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  // ?postular=1: se vuelve de Microsoft (ver applicationReturnPath) y se
+  // retoma la postulación sin que el estudiante tenga que volver a pulsar.
+  const [showApplicationFlow, setShowApplicationFlow] = useState(() => searchParams.get('postular') === '1')
+
+  useEffect(() => {
+    if (searchParams.has('postular')) setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
   const offer = projectOffers.find((item) => item.id === offerId)
   const modality = projectModalities.find((item) => item.id === offer?.modalityId)
   const modalityPath = modality ? `/proyectos-de-grado/modalidad/${modalityRouteSlug(modality.id)}` : '/proyectos-de-grado'

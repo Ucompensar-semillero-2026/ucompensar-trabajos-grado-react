@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CheckCircle2, X } from 'lucide-react'
 import { Badge, Button } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
-import { CredentialsForm } from '@/components/auth/CredentialsForm'
+import { SSOForm } from '@/components/auth/SSOForm'
 import { useAuthFlow } from '@/components/auth/AuthFlowContext'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
@@ -14,8 +14,23 @@ import type { ApplicationResult } from '@/services/applications.service'
 import type { ProjectModality, ProjectOffer } from './projectCatalog.data'
 import type { ModalityGuidance } from './modalityGuidance.data'
 import { OpportunityDetails } from './OpportunityDetails'
+import { applicationReturnPath } from './applicationReturn'
 
 type DialogStage = 'details' | 'login' | 'confirmation'
+
+// Marca que la sesión se abrió en Microsoft SOLO para postularse a esta
+// oferta: al volver del redirect, la postulación la cierra aunque falle.
+const APPLY_LOGIN_KEY = 'ucomp_apply_login_offer'
+
+function takeApplyLoginMarker(offerId: string): boolean {
+  try {
+    const marked = sessionStorage.getItem(APPLY_LOGIN_KEY) === offerId
+    sessionStorage.removeItem(APPLY_LOGIN_KEY)
+    return marked
+  } catch {
+    return false
+  }
+}
 
 interface OpportunityDetailDialogProps {
   offer: ProjectOffer
@@ -46,7 +61,7 @@ export function OpportunityDetailDialog({
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
-  const { loginWithCredentials, endSession, isLoggingIn, loginError } = useAuthFlow()
+  const { loginWithMicrosoft, endSession, loginError } = useAuthFlow()
   const [stage, setStage] = useState<DialogStage>('details')
   const [applicant, setApplicant] = useState<User | null>(null)
   const [applicationResult, setApplicationResult] = useState<ApplicationResult | null>(null)
@@ -95,13 +110,18 @@ export function OpportunityDetailDialog({
   const handlePostulate = useCallback(() => {
     setApplicationError(null)
     const session = useAppStore.getState()
-    if (session.currentUser && session.accessToken) void submitApplication(session.currentUser, false)
-    else setStage('login')
-  }, [submitApplication])
+    if (session.currentUser && session.accessToken) {
+      void submitApplication(session.currentUser, takeApplyLoginMarker(offer.id))
+    } else setStage('login')
+  }, [offer.id, submitApplication])
 
-  const handleCredentialsLogin = async (email: string, password: string) => {
-    const user = await loginWithCredentials(email, password, { redirectToDashboard: false })
-    if (user) await submitApplication(user, true)
+  const handleMicrosoftLogin = () => {
+    try {
+      sessionStorage.setItem(APPLY_LOGIN_KEY, offer.id)
+    } catch {
+      // Sin sessionStorage la sesión simplemente queda abierta tras postular.
+    }
+    void loginWithMicrosoft(applicationReturnPath(offer.id))
   }
 
   const returnFromLogin = useCallback(() => {
@@ -191,8 +211,8 @@ export function OpportunityDetailDialog({
           {stage === 'login' && <section className="mx-auto max-w-md p-6 sm:p-9" aria-labelledby="application-login-title">
             <div className="mb-6 flex justify-center"><Logo size="md" /></div>
             <h3 id="application-login-title" className="text-center text-2xl font-bold text-[#073B57]">Inicia sesión</h3>
-            <p className="mt-2 mb-6 text-center text-sm leading-relaxed text-[#526575]">Accede con tu cuenta institucional para postularte a «{offer.title}».</p>
-            <CredentialsForm onSubmit={handleCredentialsLogin} isLoading={isLoggingIn || isSubmitting} error={applicationError ?? loginError} />
+            <p className="mt-2 mb-6 text-center text-sm leading-relaxed text-[#526575]">Accede con tu cuenta institucional de Microsoft para postularte a «{offer.title}». Al volver, tu postulación se registra automáticamente.</p>
+            <SSOForm onMicrosoftLogin={handleMicrosoftLogin} error={applicationError ?? loginError} />
             {!autoApply && <button type="button" onClick={returnFromLogin} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#073B57] hover:text-[#F4511E]"><ArrowLeft size={16} aria-hidden="true" />Volver a la oportunidad</button>}
           </section>}
 
@@ -223,7 +243,7 @@ export function OpportunityDetailDialog({
           {offer.status === 'Disponible' && (applicationsService.isAtCapacity(offer) ? <Button type="button" disabled className="min-h-11 bg-[#D8DEE2] text-[#526575]">Cupos completos</Button> : <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#F4511E]" onClick={handlePostulate}>Postularme <ArrowRight size={16} aria-hidden="true" /></Button>)}
         </footer>}
 
-        {stage === 'login' && <footer className="flex shrink-0 justify-end border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8"><Button type="button" variant="outline" className="min-h-11 border-[#073B57]/25 text-[#073B57]" disabled={isLoggingIn || isSubmitting} onClick={returnFromLogin}>{autoApply ? 'Cancelar' : 'Volver a la oportunidad'}</Button></footer>}
+        {stage === 'login' && <footer className="flex shrink-0 justify-end border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8"><Button type="button" variant="outline" className="min-h-11 border-[#073B57]/25 text-[#073B57]" disabled={isSubmitting} onClick={returnFromLogin}>{autoApply ? 'Cancelar' : 'Volver a la oportunidad'}</Button></footer>}
 
         {stage === 'confirmation' && applicationResult && <footer className="flex shrink-0 justify-end border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8">
           <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={() => { onClose(); navigate('/proyectos-de-grado') }}>Volver al catálogo <ArrowRight size={16} aria-hidden="true" /></Button>
