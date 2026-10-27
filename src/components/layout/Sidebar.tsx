@@ -2,7 +2,8 @@ import { memo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LogOut, ChevronRight, X } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
-import { canAccessSection, isStudentRole } from '@/config/access'
+import { canSeeInMenu, isStudentRole } from '@/config/access'
+import { INSTITUTIONAL_ROLE_LABELS } from '@/config/roles'
 import { NAV_ITEMS, STUDENT_NAV_GROUPS } from '@/constants'
 import { useThemeStore } from '@/stores/theme.store'
 import { cn } from '@/utils/cn'
@@ -102,7 +103,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
         label: group,
         entries: NAV_ITEMS
           .filter(n => n.group.toLowerCase() === group.toLowerCase())
-          .filter(n => canAccessSection(n.id, user.role))
+          .filter(n => canSeeInMenu(n.id, user))
           .map(item => ({ key: item.id, item, active: location.pathname === item.path })),
       }))
 
@@ -186,7 +187,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
             <>
               <div className="flex-1 min-w-0 animate-in">
                 <p className="text-[13px] font-semibold text-white truncate leading-none">{user.name}</p>
-                <p className="text-[11px] mt-1 text-white/65">{user.role}</p>
+                <p className="text-[11px] mt-1 text-white/65">{user.institutionalRoles.map(r => INSTITUTIONAL_ROLE_LABELS[r]).join(' · ') || user.role}</p>
               </div>
               <button
                 onClick={() => {

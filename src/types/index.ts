@@ -1,3 +1,5 @@
+import type { InstitutionalRole } from '@/config/roles'
+
 // ─── Navigation ──────────────────────────────────────────────
 export type NavSection =
   | 'dashboard'
@@ -26,7 +28,11 @@ export interface User {
   name: string
   initials: string
   email: string
+  // Rol en la BD del backend (ej. "tutor_investigador")
   role: string
+  // Roles institucionales de Entra ID (ver config/roles.ts)
+  institutionalRoles: InstitutionalRole[]
+  authMethod: AuthMethod
 }
 
 // ─── Tramite ──────────────────────────────────────────────────

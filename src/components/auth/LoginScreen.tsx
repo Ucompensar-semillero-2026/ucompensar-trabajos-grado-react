@@ -4,19 +4,28 @@ import { SSOForm } from './SSOForm'
 import { CredentialsForm } from './CredentialsForm'
 import { Logo } from '@/components/ui/Logo'
 import { cn } from '@/utils/cn'
+import { isMicrosoftLoginConfigured } from '@/config/msal'
 
 type TabType = 'sso' | 'credentials'
 
 interface LoginScreenProps {
   onCredentialsLogin: (email: string, password: string) => void
+  onMicrosoftLogin: () => void
   isLoggingIn?: boolean
   loginError?: string | null
+  microsoftError?: string | null
 }
 
-export function LoginScreen({ onCredentialsLogin, isLoggingIn, loginError }: LoginScreenProps) {
-  // 'credentials' por defecto -- es la única forma de entrar que de verdad
-  // funciona hoy (ver SSOForm: el SSO de Microsoft todavía no existe).
-  const [activeTab, setActiveTab] = useState<TabType>('credentials')
+export function LoginScreen({
+  onCredentialsLogin,
+  onMicrosoftLogin,
+  isLoggingIn,
+  loginError,
+  microsoftError,
+}: LoginScreenProps) {
+  // Microsoft por defecto cuando está configurado en este entorno
+  // (VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID).
+  const [activeTab, setActiveTab] = useState<TabType>(isMicrosoftLoginConfigured ? 'sso' : 'credentials')
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[var(--color-bg)] transition-colors duration-300 md:flex-row">
@@ -68,7 +77,11 @@ export function LoginScreen({ onCredentialsLogin, isLoggingIn, loginError }: Log
             key={activeTab}
           >
             {activeTab === 'sso' ? (
-              <SSOForm onSwitchToCredentials={() => setActiveTab('credentials')} />
+              <SSOForm
+                onSwitchToCredentials={() => setActiveTab('credentials')}
+                onMicrosoftLogin={onMicrosoftLogin}
+                error={microsoftError}
+              />
             ) : (
               <CredentialsForm onSubmit={onCredentialsLogin} isLoading={isLoggingIn} error={loginError} />
             )}

@@ -1,12 +1,26 @@
-import type { NavSection } from '@/types'
+import type { NavSection, User } from '@/types'
+import { hasAnyRole, type InstitutionalRole } from '@/config/roles'
 
-// Fuente única de verdad para qué rol puede ver cada sección -- la usan
-// tanto el menú (Sidebar, para no mostrar un link que va a fallar) como
-// el guard de rutas (RequireSection, para no dejar entrar por URL directa).
+// Dos capas de acceso por sección, ambas usadas por el menú (Sidebar) y por
+// los guards de rutas (RequireRole / RequireSection):
 //
-// El resto de secciones (aparte de las listadas acá) son de solo lectura
-// y el backend ya filtra qué ve cada quien (ej. un estudiante solo ve sus
-// propios trámites) sin necesitar ocultar el menú entero.
+// 1. MODULE_ROLES -- rol INSTITUCIONAL (Entra ID): a qué módulos entra la
+//    persona. Sección ausente = cualquier usuario con al menos un rol.
+// 2. SECTION_ROLES -- rol de la BD que exige el endpoint del backend, para
+//    no mostrar un formulario que el backend va a rechazar al enviar.
+//
+// El resto de secciones son de solo lectura y el backend ya filtra qué ve
+// cada quien (ej. un estudiante solo ve sus propios trámites).
+export const MODULE_ROLES: Partial<Record<NavSection, readonly InstitutionalRole[]>> = {
+  nuevo: ['Estudiante'],
+  buscar: ['Administrador', 'Coordinador', 'ComiteGrado', 'Docente', 'Consulta/Biblioteca'],
+  comites: ['ComiteGrado', 'Coordinador', 'Administrador'],
+  administrativo: ['Administrador', 'Coordinador'],
+  externo: ['Externo', 'Coordinador', 'Administrador'],
+  calificaciones: ['Docente', 'Estudiante', 'Coordinador', 'ComiteGrado', 'Administrador'],
+  reportes: ['Administrador', 'Coordinador', 'ComiteGrado', 'Consulta/Biblioteca'],
+}
+
 export const SECTION_ROLES: Partial<Record<NavSection, string[]>> = {
   // POST /processes exige "estudiante" (app/domains/processes/router.py)
   nuevo: ['estudiante'],
@@ -20,9 +34,18 @@ export function isStudentRole(role: string): boolean {
   return role === 'estudiante'
 }
 
+export function canAccessModule(section: NavSection, roles: InstitutionalRole[]): boolean {
+  const allowed = MODULE_ROLES[section]
+  return roles.length > 0 && (!allowed || hasAnyRole(roles, allowed))
+}
+
 export function canAccessSection(section: NavSection, role: string): boolean {
   const allowed = SECTION_ROLES[section]
   return !allowed || allowed.includes(role)
+}
+
+export function canSeeInMenu(section: NavSection, user: User): boolean {
+  return canAccessModule(section, user.institutionalRoles) && canAccessSection(section, user.role)
 }
 
 // Aprobar/rechazar un documento -- PUT /documents/{id}/review exige

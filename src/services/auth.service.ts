@@ -16,6 +16,16 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
 
+  // Cambia el id_token de Microsoft por la sesión propia del backend
+  // (mismo access_token + cookie de refresh que /auth/login). El backend
+  // DEBE validar la firma del token contra las claves de Entra ID antes de
+  // confiar en el oid y los roles -- el frontend no es prueba de nada.
+  microsoftLogin: (idToken: string) =>
+    request<TokenResponse>('/auth/microsoft', {
+      method: 'POST',
+      body: JSON.stringify({ id_token: idToken }),
+    }),
+
   me: (accessToken: string) =>
     request<BackendUser>('/auth/me', { headers: authHeaders(accessToken) }),
 

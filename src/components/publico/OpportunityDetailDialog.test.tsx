@@ -23,6 +23,8 @@ const student: User = {
   initials: 'EP',
   email: 'estudiante@ucompensar.edu.co',
   role: 'estudiante',
+  institutionalRoles: ['Estudiante'],
+  authMethod: 'credentials',
 }
 
 const offer = projectOffers.find((item) => item.status === 'Disponible' && !applicationsService.isAtCapacity(item))!

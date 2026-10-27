@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import App from './App'
 import { useAppStore } from '@/stores/app.store'
@@ -11,6 +12,8 @@ const student: User = {
   initials: 'EP',
   email: 'estudiante@ucompensar.edu.co',
   role: 'estudiante',
+  institutionalRoles: ['Estudiante'],
+  authMethod: 'credentials',
 }
 
 function LocationProbe() {
@@ -39,6 +42,8 @@ describe('App authentication routes', () => {
   it('keeps private dashboard routes protected for signed-out visitors', async () => {
     renderApp('/dashboard', null)
 
+    // Con Microsoft configurado (VITE_AZURE_*) la pestaña por defecto es la de SSO
+    await userEvent.click(await screen.findByRole('button', { name: 'Credenciales' }))
     expect(await screen.findByLabelText('Usuario o correo')).toBeInTheDocument()
     expect(screen.getByTestId('current-route')).toHaveTextContent('/login')
   })
