@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Plus, Search, GitBranch,
-  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell,
+  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
 
@@ -15,9 +15,8 @@ export const NAV_ITEMS: Array<{
   Icon: typeof LayoutDashboard
   group: 'Principal' | 'Gestión'
   path: string
-  badge?: string
 }> = [
-  { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, group: 'Principal', badge: '4', path: '/dashboard' },
+  { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, group: 'Principal', path: '/dashboard' },
   { id: 'tramites', label: 'Mis trámites', Icon: FileText, group: 'Principal', path: '/tramites' },
   { id: 'nuevo', label: 'Nuevo trámite', Icon: Plus, group: 'Principal', path: '/nuevo' },
   { id: 'buscar', label: 'Buscar cédula', Icon: Search, group: 'Principal', path: '/buscar' },
@@ -29,6 +28,41 @@ export const NAV_ITEMS: Array<{
   { id: 'calificaciones', label: 'Calificaciones', Icon: GraduationCap, group: 'Gestión', path: '/calificaciones' },
   { id: 'notificaciones', label: 'Notificaciones', Icon: Bell, group: 'Gestión', path: '/notificaciones' },
   { id: 'reportes', label: 'Reportes', Icon: BarChart3, group: 'Gestión', path: '/reportes' },
+]
+
+// Menú del rol estudiante (se elige de forma explícita por rol en Sidebar; NAV_ITEMS sigue siendo
+// el menú del resto de roles). `activePaths` marca como activa la opción en rutas anidadas, p. ej.
+// el detalle /trazabilidad/:processId pertenece a "Mis trámites".
+export interface StudentNavItem {
+  key: string
+  label: string
+  Icon: typeof LayoutDashboard
+  path?: string
+  href?: string
+  activePaths?: string[]
+}
+
+export const SUPPORT_URL = 'https://ucompensar.edu.co/soporte-crm/'
+
+export const STUDENT_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] }> = [
+  {
+    label: 'Principal',
+    items: [
+      { key: 'inicio', label: 'Inicio', Icon: LayoutDashboard, path: '/dashboard' },
+      { key: 'tramites', label: 'Mis trámites', Icon: FileText, path: '/tramites', activePaths: ['/tramites', '/trazabilidad'] },
+    ],
+  },
+  {
+    label: 'Seguimiento académico',
+    items: [
+      { key: 'documentos', label: 'Mis documentos', Icon: FolderOpen, path: '/documentos' },
+      { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
+    ],
+  },
+  {
+    label: 'Ayuda',
+    items: [{ key: 'soporte', label: 'Ayuda y soporte', Icon: LifeBuoy, href: SUPPORT_URL }],
+  },
 ]
 
 export const MODALIDADES = [

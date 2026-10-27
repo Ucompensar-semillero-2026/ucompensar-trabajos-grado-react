@@ -15,6 +15,11 @@ export const SECTION_ROLES: Partial<Record<NavSection, string[]>> = {
   comites: ['consejo_facultad', 'administrativo'],
 }
 
+// El menú estudiantil se elige por este rol (solo presentación; los permisos reales siguen en SECTION_ROLES y el backend).
+export function isStudentRole(role: string): boolean {
+  return role === 'estudiante'
+}
+
 export function canAccessSection(section: NavSection, role: string): boolean {
   const allowed = SECTION_ROLES[section]
   return !allowed || allowed.includes(role)

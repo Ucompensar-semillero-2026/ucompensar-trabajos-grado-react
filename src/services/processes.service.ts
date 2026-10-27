@@ -11,6 +11,7 @@ export interface ProcessOut {
   created_at: string
   updated_at: string | null
   closed_at: string | null
+  observations?: string | null
 }
 
 export interface ProcessHistoryOut {

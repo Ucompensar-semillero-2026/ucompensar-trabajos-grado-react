@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginScreen } from '@/components/auth/LoginScreen'
+import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
 import { RequireSection } from '@/components/auth/RequireSection'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
@@ -20,11 +21,15 @@ import { AdministrativoSection } from '@/components/administrativo/Administrativ
 import { ExternoSection } from '@/components/externo/ExternoSection'
 import { CalificacionesSection } from '@/components/calificaciones/CalificacionesSection'
 import { NotificacionesSection } from '@/components/notificaciones/NotificacionesSection'
+import { InstitutionalHome } from '@/components/publico/InstitutionalHome'
+import { ProjectsCatalog } from '@/components/publico/ProjectsCatalog'
+import { ProjectDetail } from '@/components/publico/ProjectDetail'
+import { ModalityOpportunitiesPage } from '@/components/publico/ModalityOpportunitiesPage'
 
 export default function App() {
   const { isAuthenticated } = useAppStore()
   const { theme } = useThemeStore()
-  const { logout, loginWithCredentials, isLoggingIn, loginError, isRestoringSession } = useAuth()
+  const { logout, endSession, loginWithCredentials, isLoggingIn, loginError, isRestoringSession } = useAuth()
   const location = useLocation()
 
   useEffect(() => {
@@ -50,8 +55,13 @@ export default function App() {
   }
 
   return (
-    <>
+    <AuthFlowContext.Provider value={{ loginWithCredentials, endSession, isLoggingIn, loginError }}>
       <Routes>
+        {/* Public institutional prototype */}
+        <Route path="/" element={<InstitutionalHome />} />
+        <Route path="/proyectos-de-grado" element={<ProjectsCatalog />} />
+        <Route path="/proyectos-de-grado/modalidad/:modalitySlug" element={<ModalityOpportunitiesPage />} />
+        <Route path="/proyectos-de-grado/:offerId" element={<ProjectDetail />} />
         {/* Public — Login */}
         <Route
           path="/login"
@@ -97,15 +107,9 @@ export default function App() {
           <Route path="/reportes" element={<ReportesSection />} />
         </Route>
 
-        {/* Root redirect */}
-        <Route
-          path="/"
-          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
-        />
-
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </AuthFlowContext.Provider>
   )
 }

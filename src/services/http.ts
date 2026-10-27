@@ -2,7 +2,9 @@
 // por dominio, igual que app/domains/ en el backend) necesita importar
 // para hablar con la API. Nada de lógica de negocio vive acá.
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
+// In development, use Vite's same-origin /api proxy to avoid browser CORS
+// restrictions. Deployments can provide VITE_API_URL pointing to the API base.
+const API_URL = (import.meta.env.VITE_API_URL?.trim() || '/api').replace(/\/+$/, '')
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
 
 // El backend devuelve rutas relativas para archivos (ej. /local-storage/...)

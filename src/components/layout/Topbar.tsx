@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Search, Bell, Moon, Sun, Settings, LogOut } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
+import { isStudentRole } from '@/config/access'
 import type { NavSection } from '@/types'
 
 const sectionLabels: Record<NavSection, string> = {
@@ -17,6 +18,12 @@ const sectionLabels: Record<NavSection, string> = {
   calificaciones: 'Calificaciones',
   notificaciones: 'Notificaciones',
   reportes: 'Reportes',
+}
+
+// Etiquetas del estudiante, alineadas con su menú.
+const studentSectionLabels: Partial<Record<NavSection, string>> = {
+  dashboard: 'Inicio',
+  documentos: 'Mis documentos',
 }
 
 interface TopbarProps {
@@ -52,8 +59,8 @@ export function Topbar({ activeSection, onLogout, searchQuery, onSearchChange }:
     <header className="h-[64px] flex items-center px-6 gap-6 flex-shrink-0 relative z-30 transition-all duration-300">
       {/* Breadcrumb / Title */}
       <div className="flex-1">
-        <h1 className="text-[20px] font-bold text-[var(--color-primary)] font-display tracking-tight">
-          {sectionLabels[activeSection]}
+        <h1 className="text-[24px] font-bold text-[var(--color-primary)] font-display tracking-tight">
+          {(currentUser && isStudentRole(currentUser.role) && studentSectionLabels[activeSection]) || sectionLabels[activeSection]}
         </h1>
       </div>
 

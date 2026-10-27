@@ -259,3 +259,131 @@
     background-color: var(--color-text-dim);
   }
 }
+
+/* Faculty of Engineering swatches, sampled from the supplied brand manual. */
+.projects-catalog {
+  --engineering-navy: #052b41;
+  --engineering-sand: #f4d29d;
+  --engineering-teal: #06b0b9;
+  --engineering-orange: #ef6723;
+  --engineering-amber: #f7a226;
+  --engineering-overlay: rgba(5, 43, 65, 0.94);
+  --engineering-overlay-mid: rgba(5, 43, 65, 0.84);
+  --engineering-overlay-clear: rgba(5, 43, 65, 0);
+  --color-primary: var(--engineering-orange);
+  --color-primary-hover: var(--engineering-orange);
+  --color-primary-soft: rgba(239, 103, 35, 0.14);
+  --color-secondary: var(--engineering-navy);
+  --color-secondary-hover: var(--engineering-navy);
+  --color-secondary-soft: rgba(5, 43, 65, 0.1);
+  --color-teal: var(--engineering-teal);
+  --color-teal-soft: rgba(6, 176, 185, 0.12);
+  --color-sand: var(--engineering-sand);
+  --color-sand-soft: rgba(244, 210, 157, 0.18);
+  --color-amber: var(--engineering-amber);
+  --color-amber-soft: rgba(247, 162, 38, 0.12);
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-border: #dadada;
+  --color-text: #000000;
+  --color-text-muted: rgba(0, 0, 0, 0.76);
+  --color-text-dim: rgba(0, 0, 0, 0.62);
+}
+
+.projects-catalog .modality-card-art {
+  background-color: var(--engineering-navy);
+  background-image:
+    radial-gradient(ellipse at 78% 82%, rgba(244, 81, 30, 0.92) 0%, rgba(244, 81, 30, 0.58) 20%, rgba(244, 81, 30, 0) 54%),
+    radial-gradient(ellipse at 48% 36%, rgba(20, 91, 120, 0.98) 0%, rgba(20, 91, 120, 0.72) 32%, rgba(20, 91, 120, 0) 68%),
+    linear-gradient(135deg, #052b41 0%, #073b57 56%, #0d4968 100%);
+  transition: filter 300ms ease;
+}
+
+.projects-catalog .modality-card-art--cool {
+  background-image:
+    radial-gradient(ellipse at 20% 78%, rgba(244, 81, 30, 0.9) 0%, rgba(244, 81, 30, 0.5) 19%, rgba(244, 81, 30, 0) 52%),
+    radial-gradient(ellipse at 72% 30%, rgba(20, 91, 120, 0.98) 0%, rgba(20, 91, 120, 0.7) 34%, rgba(20, 91, 120, 0) 66%),
+    linear-gradient(145deg, #052b41 0%, #073b57 58%, #0d4968 100%);
+}
+
+.projects-catalog .group:hover .modality-card-art {
+  filter: saturate(1.16) brightness(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .projects-catalog .modality-card-art {
+    transition: none;
+  }
+}
+
+.engineering-hero-panel {
+  background: var(--engineering-navy);
+}
+
+.engineering-hero-title {
+  font-size: clamp(2.8rem, 5vw, 4.8rem);
+}
+
+.hero-reveal {
+  animation: engineering-hero-enter 680ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.hero-reveal--label {
+  animation-delay: 40ms;
+}
+
+.hero-reveal--title {
+  animation-delay: 150ms;
+}
+
+.hero-reveal--description {
+  animation-delay: 280ms;
+}
+
+.hero-reveal--actions {
+  animation-delay: 410ms;
+}
+
+@keyframes engineering-hero-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (min-width: 768px) {
+  .engineering-hero-panel {
+    background:
+      radial-gradient(ellipse 9% 34% at 51% 24%, rgba(5, 43, 65, 0.1) 0%, rgba(5, 43, 65, 0.05) 54%, transparent 100%),
+      radial-gradient(ellipse 8% 42% at 56% 61%, rgba(5, 43, 65, 0.09) 0%, rgba(5, 43, 65, 0.04) 58%, transparent 100%),
+      radial-gradient(ellipse 10% 26% at 49% 91%, rgba(5, 43, 65, 0.08) 0%, transparent 100%),
+      linear-gradient(
+        90deg,
+        var(--engineering-overlay) 0%,
+        var(--engineering-overlay) 42%,
+        var(--engineering-overlay) 48%,
+        var(--engineering-overlay-mid) 55%,
+        var(--engineering-overlay-clear) 63%
+      );
+  }
+}
+
+@media (max-width: 767px) {
+  .engineering-hero-title {
+    font-size: clamp(2.5rem, 10vw, 3.4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

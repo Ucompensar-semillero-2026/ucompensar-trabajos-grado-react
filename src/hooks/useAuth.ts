@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app.store'
 import type { BackendUser } from '@/types/api'
 import { ApiError } from '@/services/http'
 import { authApi } from '@/services/auth.service'
+import type { LoginOptions } from '@/components/auth/AuthFlowContext'
 
 function initials(fullName: string): string {
   return fullName
@@ -71,23 +72,39 @@ export function useAuth() {
   }, [loginSuccess])
 
   const loginWithCredentials = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, options: LoginOptions = {}) => {
       setIsLoggingIn(true)
       setLoginError(null)
       try {
         const tokens = await authApi.login(email, password)
         const user = await authApi.me(tokens.access_token)
+        const authenticatedUser = toStoreUser(user)
         localStorage.setItem(SESSION_FLAG_KEY, 'true')
-        loginSuccess(toStoreUser(user), tokens.access_token)
-        navigate('/dashboard')
+        loginSuccess(authenticatedUser, tokens.access_token)
+        if (options.redirectToDashboard !== false) navigate('/dashboard')
+        return authenticatedUser
       } catch (err) {
         setLoginError(err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor')
+        return null
       } finally {
         setIsLoggingIn(false)
       }
     },
     [loginSuccess, navigate]
   )
+
+  // Cierra la sesión sin navegar a /login (la usa el flujo de postulación). Solo
+  // limpia el estado local si el servidor confirmó la invalidación del refresh_token.
+  const endSession = useCallback(async (): Promise<string | null> => {
+    try {
+      await authApi.logout()
+    } catch (err) {
+      return err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor'
+    }
+    localStorage.removeItem(SESSION_FLAG_KEY)
+    storeLogout()
+    return null
+  }, [storeLogout])
 
   const logout = useCallback(() => {
     localStorage.removeItem(SESSION_FLAG_KEY)
@@ -99,5 +116,5 @@ export function useAuth() {
     })
   }, [storeLogout, navigate])
 
-  return { logout, loginWithCredentials, isLoggingIn, loginError, isRestoringSession }
+  return { logout, endSession, loginWithCredentials, isLoggingIn, loginError, isRestoringSession }
 }

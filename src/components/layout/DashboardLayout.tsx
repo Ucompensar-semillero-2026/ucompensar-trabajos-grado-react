@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useAppStore } from '@/stores/app.store'
 import { NAV_ITEMS } from '@/constants'
+import { isStudentRole } from '@/config/access'
 
 interface DashboardLayoutProps {
   onLogout: () => void
@@ -18,8 +19,13 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   }
 
   // Derive activeSection from current path
-  const activeItem = NAV_ITEMS.find(item => item.path === location.pathname) || NAV_ITEMS[0]
-  const activeSection = activeItem.id
+  // Rutas anidadas (p. ej. /trazabilidad/:processId) pertenecen a su sección base; para el
+  // estudiante el detalle de trazabilidad es parte de "Mis trámites".
+  const activeItem =
+    NAV_ITEMS.find(item => item.path === location.pathname) ||
+    NAV_ITEMS.find(item => location.pathname.startsWith(`${item.path}/`)) ||
+    NAV_ITEMS[0]
+  const activeSection = isStudentRole(currentUser.role) && activeItem.id === 'trazabilidad' ? 'tramites' : activeItem.id
 
   return (
     <div className="flex h-screen">

@@ -99,14 +99,14 @@ El Servidor de Network se iniciará en: `http://{api_address}:5173/login`
 
 ---
 
-## 🔑 Credenciales de Prueba (Demo)
+## API y autenticacion en desarrollo
 
-La autenticación es simulada. Puedes ingresar con:
-- **Microsoft SSO**: clic en "Continuar con Microsoft"
-- **Credenciales**: cualquier email y contraseña
+El frontend valida el acceso contra el backend institucional; no hay credenciales de demostracion ni login simulado en el cliente.
 
----
-
+- Inicia el frontend con npm run dev. En desarrollo, las solicitudes a /api usan el proxy de Vite hacia http://localhost:8000.
+- El backend debe ejecutarse por separado y exponer /api/auth/login, /api/auth/me, /api/auth/refresh y /api/auth/logout.
+- Este repositorio no incluye el backend ni documenta su comando de inicio. Solicita el proyecto/backend institucional y sus instrucciones al equipo responsable; no hay usuarios demo habilitados por el frontend.
+- Para un backend remoto o una URL distinta, configura VITE_API_URL con la URL base de la API, incluyendo /api. En ese entorno, el backend debe permitir el origen del frontend y credenciales para la cookie de renovacion.
 ## 🎨 Sistema de Diseño
 
 ### Colores principales

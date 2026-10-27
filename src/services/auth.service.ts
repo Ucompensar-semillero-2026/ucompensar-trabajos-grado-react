@@ -1,4 +1,4 @@
-import { authHeaders, request } from './http'
+import { ApiError, authHeaders, request } from './http'
 import type { BackendUser } from '@/types/api'
 
 export interface TokenResponse {
@@ -18,6 +18,17 @@ export const authApi = {
 
   me: (accessToken: string) =>
     request<BackendUser>('/auth/me', { headers: authHeaders(accessToken) }),
+
+  verifyIdentity: async (accessToken: string, password: string, expectedPublicId: string): Promise<void> => {
+    const user = await request<{ public_id: string }>('/auth/verify', {
+      method: 'POST',
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ password }),
+    })
+    if (user.public_id !== expectedPublicId) {
+      throw new ApiError(403, 'Las credenciales no corresponden a la cuenta que inició esta sesión.')
+    }
+  },
 
   // Cambia el refresh_token de la cookie (que el navegador manda solo)
   // por un access_token nuevo. Se llama al arrancar la app para restaurar

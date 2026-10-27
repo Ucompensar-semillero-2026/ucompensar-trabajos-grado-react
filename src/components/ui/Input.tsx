@@ -1,4 +1,5 @@
 import { cn } from '@/utils/cn'
+import { useId } from 'react'
 import type { InputHTMLAttributes } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -6,18 +7,20 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, className, id, ...props }: InputProps) {
+  const generatedId = useId()
+  const inputId = id ?? generatedId
   return (
     <div className="flex flex-col gap-1.5 group">
       {label && (
         <label
-          htmlFor={id}
+          htmlFor={inputId}
           className="field-label group-focus-within:text-[var(--color-primary)] transition-colors"
         >
           {label}
         </label>
       )}
       <input
-        id={id}
+        id={inputId}
         className={cn(
           'field-input shadow-sm',
           className

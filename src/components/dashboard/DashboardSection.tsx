@@ -62,7 +62,7 @@ export function DashboardSection() {
             </svg>
           </div>
           <div className="flex-1">
-            <h3 className="text-[16px] font-bold text-[var(--color-text)] tracking-tight">Atención inmediata requerida</h3>
+            <h3 className="text-[18px] font-bold text-[var(--color-text)] tracking-tight">Atención inmediata requerida</h3>
             <p className="text-[13px] text-[var(--color-text-dim)]">
               Tienes <strong className="text-[var(--color-text)]">{inactivos.length} trámite{inactivos.length === 1 ? '' : 's'}</strong> que requiere{inactivos.length === 1 ? '' : 'n'} atención por inactividad prolongada (más de {INACTIVITY_THRESHOLD_DAYS} días).
             </p>
@@ -115,7 +115,7 @@ export function DashboardSection() {
         {/* Recent tramites table */}
         <div className="xl:col-span-2 card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border)] bg-transparent">
-            <h2 className="text-[15px] font-bold text-[var(--color-text)] tracking-tight">Trámites recientes</h2>
+            <h2 className="text-[18px] font-bold text-[var(--color-text)] tracking-tight">Trámites recientes</h2>
             <button onClick={() => navigate('/tramites')} className="btn-ghost text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-transparent">
               Ver todos los trámites →
             </button>
@@ -160,7 +160,7 @@ export function DashboardSection() {
 
         {/* Modality bars */}
         <div className="card p-6 flex flex-col">
-          <h2 className="text-[15px] font-bold text-[var(--color-text)] mb-6 tracking-tight">Por modalidad</h2>
+          <h2 className="text-[18px] font-bold text-[var(--color-text)] mb-6 tracking-tight">Por modalidad</h2>
           <div className="space-y-6 flex-1">
             {isLoading ? (
               <p className="text-[12.5px] text-[var(--color-text-dim)]">Cargando…</p>
