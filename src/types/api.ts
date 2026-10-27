@@ -7,6 +7,9 @@ export interface BackendUser {
   email: string
   full_name: string
   role: { public_id: string; name: string; description: string | null; active: boolean }
+  // App Roles de Entra ID sincronizados en el último login con Microsoft.
+  // Vacío para cuentas que solo entran con credenciales.
+  institutional_roles: string[]
   active: boolean
 }
 

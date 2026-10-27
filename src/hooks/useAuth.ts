@@ -42,12 +42,13 @@ function toStoreUser(user: BackendUser, institutionalRoles: InstitutionalRole[],
   }
 }
 
-// Roles de la cuenta de Microsoft que sigue en la caché de MSAL (si la
-// hay). Al restaurar con F5, /auth/me solo trae el rol de la BD.
-function cachedMicrosoftRoles(): InstitutionalRole[] | null {
-  if (!isMicrosoftLoginConfigured) return null
-  const account = msalInstance.getActiveAccount()
-  return account ? parseInstitutionalRoles(account.idTokenClaims?.roles) : null
+// El backend sincroniza los App Roles de Entra ID en cada login con
+// Microsoft (`institutional_roles`). Una cuenta solo de credenciales no
+// los tiene: su rol institucional se deduce del rol de la BD.
+function resolveInstitutionalRoles(user: BackendUser): { roles: InstitutionalRole[]; authMethod: AuthMethod } {
+  const fromEntra = parseInstitutionalRoles(user.institutional_roles)
+  if (fromEntra.length > 0) return { roles: fromEntra, authMethod: 'sso' }
+  return { roles: institutionalRolesFromBackendRole(user.role.name), authMethod: 'credentials' }
 }
 
 // Mensajes legibles para los errores que devuelve Microsoft en la vuelta
@@ -117,10 +118,15 @@ export function useAuth() {
           navigateRef.current(homePathFor(roles), { replace: true })
         })
         .catch((err) => {
+          if (err instanceof ApiError && err.status === 403) {
+            navigateRef.current(NO_ACCESS_PATH, { replace: true })
+            return
+          }
           // 404/405: el backend todavía no tiene POST /auth/microsoft
           const notReady = err instanceof ApiError && (err.status === 404 || err.status === 405)
+          const notConfigured = err instanceof ApiError && err.status === 503
           setMicrosoftError(
-            notReady
+            notReady || notConfigured
               ? 'Tu cuenta de Microsoft es válida, pero el servidor todavía no acepta este inicio de sesión. Usa la pestaña Credenciales mientras tanto.'
               : err instanceof ApiError
                 ? err.message
@@ -145,10 +151,9 @@ export function useAuth() {
       .then(async (tokens) => {
         const user = await authApi.me(tokens.access_token)
         if (!cancelled) {
-          const microsoftRoles = cachedMicrosoftRoles()
-          const roles = microsoftRoles ?? institutionalRolesFromBackendRole(user.role.name)
+          const { roles, authMethod } = resolveInstitutionalRoles(user)
           localStorage.setItem(SESSION_FLAG_KEY, 'true')
-          loginSuccess(toStoreUser(user, roles, microsoftRoles ? 'sso' : 'credentials'), tokens.access_token)
+          loginSuccess(toStoreUser(user, roles, authMethod), tokens.access_token)
         }
       })
       .catch(() => {
@@ -181,8 +186,8 @@ export function useAuth() {
       try {
         const tokens = await authApi.login(email, password)
         const user = await authApi.me(tokens.access_token)
-        const roles = institutionalRolesFromBackendRole(user.role.name)
-        const authenticatedUser = toStoreUser(user, roles, 'credentials')
+        const { roles, authMethod } = resolveInstitutionalRoles(user)
+        const authenticatedUser = toStoreUser(user, roles, authMethod)
         localStorage.setItem(SESSION_FLAG_KEY, 'true')
         loginSuccess(authenticatedUser, tokens.access_token)
         if (options.redirectToDashboard !== false) navigate(homePathFor(roles))
@@ -213,7 +218,8 @@ export function useAuth() {
   }, [currentUser, storeLogout])
 
   const logout = useCallback(() => {
-    const wasMicrosoft = currentUser?.authMethod === 'sso' || Boolean(msalInstance.getActiveAccount())
+    const wasMicrosoft =
+      currentUser?.authMethod === 'sso' || (isMicrosoftLoginConfigured && Boolean(msalInstance.getActiveAccount()))
     localStorage.removeItem(SESSION_FLAG_KEY)
     storeLogout()
     navigate('/login')
