@@ -16,7 +16,8 @@ describe('authApi.verifyIdentity', () => {
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, options] = fetch.mock.calls[0]
-    expect(url).toBe('/api/auth/verify')
+    // La base depende de VITE_API_URL (proxy /api en local, Render en Vercel)
+    expect(String(url)).toMatch(/\/api\/auth\/verify$/)
     expect(options?.method).toBe('POST')
     expect(options?.headers).toEqual({
       'Content-Type': 'application/json',

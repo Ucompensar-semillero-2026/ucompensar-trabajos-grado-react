@@ -193,7 +193,7 @@ export function DocumentosSection() {
               <span className="text-[var(--color-text-dim)] font-medium">Estado:</span>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
                 className="bg-transparent text-[var(--color-text)] font-semibold outline-none cursor-pointer text-[12px]"
               >
                 <option value="todos">Todos</option>
