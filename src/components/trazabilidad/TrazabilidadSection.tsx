@@ -233,7 +233,7 @@ export function TrazabilidadSection() {
                   ref={(el) => { fileInputs.current[item.document_type.public_id] = el }}
                   type="file"
                   className="hidden"
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file) handleUpload(item.document_type.public_id, file)
