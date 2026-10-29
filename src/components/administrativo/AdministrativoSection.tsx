@@ -12,6 +12,7 @@ import {
   type AdministrativeApprovalResult,
 } from '@/services/administrative.service'
 import { processesApi, type ProcessOut } from '@/services/processes.service'
+import { hasModule } from '@/config/access'
 
 const RESULTS: { value: AdministrativeApprovalResult; label: string }[] = [
   { value: 'APROBADO', label: 'Aprobado' },
@@ -22,7 +23,8 @@ const RESULTS: { value: AdministrativeApprovalResult; label: string }[] = [
 export function AdministrativoSection() {
   const accessToken = useAppStore((s) => s.accessToken)
   const currentUser = useAppStore((s) => s.currentUser)
-  const isAdmin = currentUser?.role === 'administrativo'
+  // Crear áreas y agregar integrantes (backend: solo administración).
+  const isAdmin = hasModule(currentUser, 'administrativo-gestion')
 
   const [areas, setAreas] = useState<AdministrativeAreaOut[]>([])
   const [selected, setSelected] = useState<AdministrativeAreaOut | null>(null)

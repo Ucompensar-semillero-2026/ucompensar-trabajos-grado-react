@@ -6,12 +6,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useSessionExitPolicy } from '@/hooks/useSessionExitPolicy'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
-import { RequireSection } from '@/components/auth/RequireSection'
-import { RequireRole } from '@/components/auth/RequireRole'
+import { RequireModule } from '@/components/auth/RequireModule'
 import { NoAccessScreen } from '@/components/auth/NoAccessScreen'
 import { SessionClosedScreen } from '@/components/auth/SessionClosedScreen'
-import { MODULE_ROLES } from '@/config/access'
-import { NO_ACCESS_PATH, homePathFor } from '@/config/roles'
+import { homePathFor } from '@/config/access'
+import { NO_ACCESS_PATH } from '@/config/roles'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
 // Section imports
@@ -44,7 +43,7 @@ export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
   const { theme } = useThemeStore()
   const { logout, leavePortal, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
-  const homePath = currentUser ? homePathFor(currentUser.institutionalRoles) : '/login'
+  const homePath = currentUser ? homePathFor(currentUser.modules) : '/login'
   const location = useLocation()
 
   useEffect(() => {
@@ -100,57 +99,55 @@ export default function App() {
         <Route path={NO_ACCESS_PATH} element={<NoAccessScreen onLogout={logout} />} />
 
         {/* Authenticated — Shared sidebar layout (pathless route).
-            RequireRole sin `roles`: exige al menos un rol institucional. */}
+            RequireModule sin `module`: exige al menos un módulo (GET /auth/me). */}
         <Route
           element={
-            <RequireRole>
+            <RequireModule>
               <DashboardLayout onLogout={logout} />
-            </RequireRole>
+            </RequireModule>
           }
         >
           <Route path="/dashboard" element={<DashboardRoute />} />
-          <Route path="/mis-propuestas" element={<RequireRole roles={MODULE_ROLES['mis-propuestas']}><MisPropuestas /></RequireRole>} />
+          <Route path="/mis-propuestas" element={<RequireModule module="mis-propuestas"><MisPropuestas /></RequireModule>} />
           {/* Coordinación académica: el backend exige coordinador/administrativo en cada endpoint */}
-          <Route path="/coordinacion/portafolio" element={<RequireRole roles={MODULE_ROLES.portafolio}><PortafolioProyectos /></RequireRole>} />
-          <Route path="/coordinacion/propuestas" element={<RequireRole roles={MODULE_ROLES.propuestas}><PropuestasEstudiantiles /></RequireRole>} />
-          <Route path="/coordinacion/propuestas/:proposalId" element={<RequireRole roles={MODULE_ROLES.propuestas}><PropuestaDetalle /></RequireRole>} />
-          <Route path="/coordinacion/asignacion" element={<RequireRole roles={MODULE_ROLES.asignacion}><AsignacionTutores /></RequireRole>} />
+          <Route path="/coordinacion/portafolio" element={<RequireModule module="portafolio"><PortafolioProyectos /></RequireModule>} />
+          <Route path="/coordinacion/propuestas" element={<RequireModule module="propuestas"><PropuestasEstudiantiles /></RequireModule>} />
+          <Route path="/coordinacion/propuestas/:proposalId" element={<RequireModule module="propuestas"><PropuestaDetalle /></RequireModule>} />
+          <Route path="/coordinacion/asignacion" element={<RequireModule module="asignacion"><AsignacionTutores /></RequireModule>} />
           <Route
             path="/coordinacion/proyectos/:processId"
-            element={<RequireRole roles={MODULE_ROLES.asignacion}><ProjectExpediente backTo={{ to: '/coordinacion/asignacion', label: 'Volver a la asignación de tutores' }} /></RequireRole>}
+            element={<RequireModule module="asignacion"><ProjectExpediente backTo={{ to: '/coordinacion/asignacion', label: 'Volver a la asignación de tutores' }} /></RequireModule>}
           />
           <Route
             path="/mi-proceso"
             element={
-              <RequireRole roles={MODULE_ROLES.proceso}>
+              <RequireModule module="proceso">
                 <MiProcesoSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
           {/* Espacio del tutor: la asignación real (process_team) la valida el backend en cada endpoint */}
-          <Route path="/tutor" element={<RequireRole roles={MODULE_ROLES.tutor}><TutorPanel /></RequireRole>} />
-          <Route path="/tutor/proyectos" element={<RequireRole roles={MODULE_ROLES.tutor}><TutorProjectsPage /></RequireRole>} />
-          <Route path="/tutor/proyectos/:processId" element={<RequireRole roles={MODULE_ROLES.tutor}><ProjectExpediente /></RequireRole>} />
-          <Route path="/tutor/planes" element={<RequireRole roles={MODULE_ROLES.tutor}><TutorPlansPage /></RequireRole>} />
-          <Route path="/tutor/revisiones" element={<RequireRole roles={MODULE_ROLES.tutor}><TutorReviewsPage /></RequireRole>} />
-          <Route path="/tutor/estadisticas" element={<RequireRole roles={MODULE_ROLES.tutor}><TutorStatsPage /></RequireRole>} />
+          <Route path="/tutor" element={<RequireModule module="tutor"><TutorPanel /></RequireModule>} />
+          <Route path="/tutor/proyectos" element={<RequireModule module="tutor"><TutorProjectsPage /></RequireModule>} />
+          <Route path="/tutor/proyectos/:processId" element={<RequireModule module="tutor"><ProjectExpediente /></RequireModule>} />
+          <Route path="/tutor/planes" element={<RequireModule module="tutor"><TutorPlansPage /></RequireModule>} />
+          <Route path="/tutor/revisiones" element={<RequireModule module="tutor"><TutorReviewsPage /></RequireModule>} />
+          <Route path="/tutor/estadisticas" element={<RequireModule module="tutor"><TutorStatsPage /></RequireModule>} />
           <Route path="/tramites" element={<TramitesSection />} />
           <Route
             path="/nuevo"
             element={
-              <RequireRole roles={MODULE_ROLES.nuevo}>
-                <RequireSection section="nuevo">
-                  <NuevoTramiteSection />
-                </RequireSection>
-              </RequireRole>
+              <RequireModule module="nuevo">
+                <NuevoTramiteSection />
+              </RequireModule>
             }
           />
           <Route
             path="/buscar"
             element={
-              <RequireRole roles={MODULE_ROLES.buscar}>
+              <RequireModule module="buscar">
                 <BuscarSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
           <Route path="/trazabilidad" element={<TrazabilidadSection />} />
@@ -159,44 +156,42 @@ export default function App() {
           <Route
             path="/comites"
             element={
-              <RequireRole roles={MODULE_ROLES.comites}>
-                <RequireSection section="comites">
-                  <ComitesSection />
-                </RequireSection>
-              </RequireRole>
+              <RequireModule module="comites">
+                <ComitesSection />
+              </RequireModule>
             }
           />
           <Route
             path="/administrativo"
             element={
-              <RequireRole roles={MODULE_ROLES.administrativo}>
+              <RequireModule module="administrativo">
                 <AdministrativoSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
           <Route
             path="/externo"
             element={
-              <RequireRole roles={MODULE_ROLES.externo}>
+              <RequireModule module="externo">
                 <ExternoSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
           <Route
             path="/calificaciones"
             element={
-              <RequireRole roles={MODULE_ROLES.calificaciones}>
+              <RequireModule module="calificaciones">
                 <CalificacionesSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
           <Route path="/notificaciones" element={<NotificacionesSection />} />
           <Route
             path="/reportes"
             element={
-              <RequireRole roles={MODULE_ROLES.reportes}>
+              <RequireModule module="reportes">
                 <ReportesSection />
-              </RequireRole>
+              </RequireModule>
             }
           />
         </Route>

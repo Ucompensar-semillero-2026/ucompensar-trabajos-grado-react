@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/app.store'
-import type { BackendUser } from '@/types/api'
-import type { AuthMethod } from '@/types'
+import type { MeOut } from '@/types/api'
 import { ApiError, SESSION_FLAG_KEY } from '@/services/http'
 import { authApi } from '@/services/auth.service'
 import {
@@ -14,13 +13,8 @@ import {
 import type { EndSessionOptions } from '@/components/auth/AuthFlowContext'
 import { SESSION_CLOSED_PATH } from '@/config/sessionPolicy'
 import { setFlash, type PublicFlash } from '@/services/sessionFlash'
-import {
-  NO_ACCESS_PATH,
-  homePathFor,
-  institutionalRolesFromBackendRole,
-  parseInstitutionalRoles,
-  type InstitutionalRole,
-} from '@/config/roles'
+import { NO_ACCESS_PATH } from '@/config/roles'
+import { homePathFor, knownModules } from '@/config/access'
 
 function initials(fullName: string): string {
   return fullName
@@ -31,25 +25,17 @@ function initials(fullName: string): string {
     .join('')
 }
 
-function toStoreUser(user: BackendUser, institutionalRoles: InstitutionalRole[], authMethod: AuthMethod) {
+// GET /auth/me es la ÚNICA fuente de roles y módulos (docs/ROLES-DISENO.md,
+// contrato 6.1): el frontend no traduce App Roles ni deduce permisos.
+export function toStoreUser(me: MeOut) {
   return {
-    id: user.public_id,
-    name: user.full_name,
-    initials: initials(user.full_name),
-    email: user.email,
-    role: user.role.name,
-    institutionalRoles,
-    authMethod,
+    id: me.public_id,
+    name: me.full_name,
+    initials: initials(me.full_name),
+    email: me.email,
+    roles: [...me.roles],
+    modules: knownModules(me.modules),
   }
-}
-
-// El backend sincroniza los App Roles de Entra ID en cada login con
-// Microsoft (`institutional_roles`). El respaldo por rol de la BD solo
-// aplica a cuentas antiguas sin Microsoft vinculado.
-function resolveInstitutionalRoles(user: BackendUser): { roles: InstitutionalRole[]; authMethod: AuthMethod } {
-  const fromEntra = parseInstitutionalRoles(user.institutional_roles)
-  if (fromEntra.length > 0) return { roles: fromEntra, authMethod: 'sso' }
-  return { roles: institutionalRolesFromBackendRole(user.role.name), authMethod: 'credentials' }
 }
 
 // Mensajes legibles para los errores que devuelve Microsoft en la vuelta
@@ -112,20 +98,19 @@ export function useAuth() {
     // 2. Vuelta de login.microsoftonline.com con éxito
     if (outcome.result && !microsoftRedirectConsumed) {
       microsoftRedirectConsumed = true
-      const roles = parseInstitutionalRoles(outcome.result.idTokenClaims && (outcome.result.idTokenClaims as { roles?: unknown }).roles)
-      if (roles.length === 0) {
-        navigateRef.current(NO_ACCESS_PATH, { replace: true })
-        setIsRestoringSession(false)
-        return
-      }
 
+      // Sin App Roles conocidos el backend responde 403 (ver el catch).
       authApi
         .microsoftLogin(outcome.result.idToken)
         .then(async (tokens) => {
-          const user = await authApi.me(tokens.access_token)
+          const user = toStoreUser(await authApi.me(tokens.access_token))
+          if (user.modules.length === 0) {
+            navigateRef.current(NO_ACCESS_PATH, { replace: true })
+            return
+          }
           localStorage.setItem(SESSION_FLAG_KEY, 'true')
-          loginSuccess(toStoreUser(user, roles, 'sso'), tokens.access_token)
-          navigateRef.current(safeReturnPath(outcome.result?.state) ?? homePathFor(roles), { replace: true })
+          loginSuccess(user, tokens.access_token)
+          navigateRef.current(safeReturnPath(outcome.result?.state) ?? homePathFor(user.modules), { replace: true })
         })
         .catch((err) => {
           if (err instanceof ApiError && err.status === 403) {
@@ -161,9 +146,8 @@ export function useAuth() {
       .then(async (tokens) => {
         const user = await authApi.me(tokens.access_token)
         if (!cancelled) {
-          const { roles, authMethod } = resolveInstitutionalRoles(user)
           localStorage.setItem(SESSION_FLAG_KEY, 'true')
-          loginSuccess(toStoreUser(user, roles, authMethod), tokens.access_token)
+          loginSuccess(toStoreUser(user), tokens.access_token)
         }
       })
       .catch(() => {

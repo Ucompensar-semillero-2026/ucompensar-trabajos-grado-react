@@ -8,6 +8,8 @@ import { modalitiesApi, type RequiredDocumentOut } from '@/services/modalities.s
 import { processesApi } from '@/services/processes.service'
 import type { ModalityOut } from '@/types/api'
 import { PlusCircle } from 'lucide-react'
+import { hasModule } from '@/config/access'
+import { roleLabels } from '@/config/roles'
 
 export function NuevoTramiteSection() {
   const navigate = useNavigate()
@@ -65,11 +67,11 @@ export function NuevoTramiteSection() {
     }
   }
 
-  if (currentUser && currentUser.role !== 'estudiante') {
+  if (currentUser && !hasModule(currentUser, 'nuevo')) {
     return (
       <div className="max-w-[700px]">
         <p className="text-sm text-[var(--color-text-dim)]">
-          Solo los estudiantes pueden radicar un nuevo trámite. Tu rol actual es <strong>{currentUser.role}</strong>.
+          Solo los estudiantes pueden radicar un nuevo trámite. Tu cuenta es de <strong>{roleLabels(currentUser.roles).join(', ')}</strong>.
         </p>
       </div>
     )

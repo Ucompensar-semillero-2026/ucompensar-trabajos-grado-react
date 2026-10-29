@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { LogOut, ChevronRight, X } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { SidebarBackdrop } from './SidebarBackdrop'
-import { canSeeInMenu, isStudentRole, isTutorWorkspaceUser } from '@/config/access'
-import { INSTITUTIONAL_ROLE_LABELS } from '@/config/roles'
+import { hasModule } from '@/config/access'
+import { roleLabels } from '@/config/roles'
 import { NAV_ITEMS, STUDENT_NAV_GROUPS, TUTOR_NAV_GROUPS } from '@/constants'
 import type { StudentNavItem } from '@/constants'
 import { useThemeStore } from '@/stores/theme.store'
@@ -101,8 +101,8 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
 
   const handleToggle = () => setCollapsed((prev) => !prev)
 
-  // El menú se elige de forma explícita por rol: estudiantes ven su lista propia; el resto, NAV_ITEMS.
-  const roleMenu = isStudentRole(user.role) ? STUDENT_NAV_GROUPS : isTutorWorkspaceUser(user) ? TUTOR_NAV_GROUPS : null
+  // El menú lo elige el espacio de trabajo que dice el backend (GET /auth/me -> modules).
+  const roleMenu = hasModule(user, 'workspace-student') ? STUDENT_NAV_GROUPS : hasModule(user, 'workspace-tutor') ? TUTOR_NAV_GROUPS : null
   const isItemActive = (item: StudentNavItem) =>
     !item.href &&
     (item.exact
@@ -117,7 +117,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
         label: group,
         entries: NAV_ITEMS
           .filter(n => n.group.toLowerCase() === group.toLowerCase())
-          .filter(n => canSeeInMenu(n.id, user))
+          .filter(n => hasModule(user, n.id))
           .map(item => ({ key: item.id, item, active: location.pathname === item.path })),
       }))
 
@@ -205,7 +205,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
             <>
               <div className="flex-1 min-w-0 animate-in">
                 <p className="text-[13px] font-semibold text-white truncate leading-none">{user.name}</p>
-                <p className="text-[11px] mt-1 text-white/65">{user.institutionalRoles.map(r => INSTITUTIONAL_ROLE_LABELS[r]).join(' · ') || user.role}</p>
+                <p className="text-[11px] mt-1 text-white/65">{roleLabels(user.roles).join(' · ')}</p>
               </div>
               <button
                 onClick={() => {

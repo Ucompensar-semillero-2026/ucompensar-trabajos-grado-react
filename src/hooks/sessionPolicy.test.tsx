@@ -36,11 +36,10 @@ import { clearMicrosoftSession, msalInstance } from '@/config/msal'
 import { useAuth } from './useAuth'
 import { useSessionExitPolicy } from './useSessionExitPolicy'
 import { PublicFlashNotice } from '@/components/publico/PublicFlashNotice'
+import { makeUser } from '@/test/users'
 
-const user = (role: string, institutionalRoles: User['institutionalRoles']): User => ({
-  id: `${role}-id`, name: 'Persona de Prueba', initials: 'PP', email: `${role}@ucompensar.edu.co`, role, institutionalRoles, authMethod: 'sso',
-})
-const student = user('estudiante', ['Estudiante'])
+const user = (label: string, roles: string[]): User => makeUser(roles, { id: `${label}-id`, email: `${label}@ucompensar.edu.co` })
+const student = user('estudiante', ['estudiante'])
 const flash: PublicFlash = { kind: 'proposal', code: 'PROP-2026-AAA', title: 'Detección de fallas' }
 
 // El indicador local de sesión solo lo usa la restauración al arrancar (F5); aquí se pone después de montar.
@@ -203,8 +202,8 @@ describe('salida del portal', () => {
   })
 
   it.each([
-    ['estudiante', ['Estudiante']], ['docente', ['Docente']], ['coordinador', ['Coordinador']], ['administrativo', ['Administrador']], ['comite', ['Comité']],
-  ] as Array<[string, User['institutionalRoles']]>)('works for the %s role', async (role, roles) => {
+    ['estudiante', ['estudiante']], ['docente', ['docente']], ['coordinador', ['coordinador']], ['administrativo', ['administrador']], ['comite', ['comite_grado']],
+  ] as Array<[string, string[]]>)('works for the %s role', async (role, roles) => {
     const u = userEvent.setup()
     signIn(user(role, roles))
     renderHarness('/dashboard')

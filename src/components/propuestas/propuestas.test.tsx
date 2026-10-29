@@ -25,9 +25,10 @@ import { ProjectsCatalog } from '@/components/publico/ProjectsCatalog'
 import { MisPropuestas } from './MisPropuestas'
 import { PropuestasEstudiantiles } from './PropuestasEstudiantiles'
 import { PropuestaDetalle } from './PropuestaDetalle'
+import { modulesFor } from '@/test/users'
 
-const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'ana@ucompensar.edu.co', role: 'estudiante', institutionalRoles: ['Estudiante'], authMethod: 'sso' }
-const coordinator: User = { id: 'c1', name: 'Diana Coordinadora', initials: 'DC', email: 'd@ucompensar.edu.co', role: 'coordinador', institutionalRoles: ['Coordinador'], authMethod: 'sso' }
+const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'ana@ucompensar.edu.co', roles: ['estudiante'], modules: modulesFor(['estudiante']) }
+const coordinator: User = { id: 'c1', name: 'Diana Coordinadora', initials: 'DC', email: 'd@ucompensar.edu.co', roles: ['coordinador'], modules: modulesFor(['coordinador']) }
 
 const person = (id: string, name: string) => ({ public_id: id, full_name: name })
 

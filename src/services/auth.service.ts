@@ -1,5 +1,5 @@
 import { ApiError, authHeaders, request } from './http'
-import type { BackendUser } from '@/types/api'
+import type { MeOut } from '@/types/api'
 
 export interface TokenResponse {
   access_token: string
@@ -27,7 +27,7 @@ export const authApi = {
     }),
 
   me: (accessToken: string) =>
-    request<BackendUser>('/auth/me', { headers: authHeaders(accessToken) }),
+    request<MeOut>('/auth/me', { headers: authHeaders(accessToken) }),
 
   verifyIdentity: async (accessToken: string, password: string, expectedPublicId: string): Promise<void> => {
     const user = await request<{ public_id: string }>('/auth/verify', {

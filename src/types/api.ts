@@ -6,11 +6,17 @@ export interface BackendUser {
   public_id: string
   email: string
   full_name: string
-  role: { public_id: string; name: string; description: string | null; active: boolean }
-  // App Roles de Entra ID sincronizados en el último login con Microsoft.
-  // Vacío para cuentas que solo entran con credenciales.
-  institutional_roles: string[]
+  /** @deprecated Obsoleto en el backend: usar `roles` y `modules` de GET /auth/me. */
+  role?: { public_id: string; name: string; description: string | null; active: boolean } | null
+  /** @deprecated App Roles sin traducir: usar `roles` de GET /auth/me. */
+  institutional_roles?: string[]
   active: boolean
+}
+
+/** GET /auth/me: única fuente de roles y módulos (docs/ROLES-DISENO.md, contrato 6.1). */
+export interface MeOut extends BackendUser {
+  roles: string[]
+  modules: string[]
 }
 
 export interface ModalityOut {

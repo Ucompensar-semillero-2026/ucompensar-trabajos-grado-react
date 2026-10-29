@@ -5,8 +5,9 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import { documentsApi, type ChecklistItemOut } from '@/services/documents.service'
-import { processesApi, type ProcessOut, type ProcessHistoryOut } from '@/services/processes.service'
-import { workflowApi, type AllowedTransitionOut } from '@/services/workflow.service'
+import { processesApi, type ProcessDetailOut, type ProcessHistoryOut } from '@/services/processes.service'
+import type { PossibleStateOut } from '@/types/api'
+import { can } from '@/config/actions'
 import { formatRelativeDate } from '@/utils/format'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
 import { TeamPanel } from '@/components/tutor/TeamPanel'
@@ -21,12 +22,12 @@ const CHECKLIST_COLORS: Record<string, string> = {
 export function TrazabilidadSection() {
   const { processId } = useParams<{ processId: string }>()
   const accessToken = useAppStore((s) => s.accessToken)
-  const currentUser = useAppStore((s) => s.currentUser)
 
-  const [process, setProcess] = useState<ProcessOut | null>(null)
+  const [process, setProcess] = useState<ProcessDetailOut | null>(null)
   const [history, setHistory] = useState<ProcessHistoryOut[]>([])
   const [checklist, setChecklist] = useState<ChecklistItemOut[]>([])
-  const [transitions, setTransitions] = useState<AllowedTransitionOut[]>([])
+  // Estados a los que esta persona puede mover el trámite: los calcula el backend (contrato 6.1).
+  const [availableTransitions, setAvailableTransitions] = useState<PossibleStateOut[]>([])
   const [tab, setTab] = useState<'docs' | 'audit'>('docs')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,25 +46,21 @@ export function TrazabilidadSection() {
       processesApi.get(accessToken, processId),
       processesApi.history(accessToken, processId),
       documentsApi.checklist(accessToken, processId),
+      processesApi.availableTransitions(accessToken, processId),
     ])
-      .then(([proc, hist, check]) => {
+      .then(([proc, hist, check, targets]) => {
         setProcess(proc)
         setHistory(hist)
         setChecklist(check)
-        return workflowApi.transitions(accessToken, proc.modality.public_id)
+        setAvailableTransitions(targets)
       })
-      .then(setTransitions)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudo cargar el trámite'))
       .finally(() => setIsLoading(false))
   }
 
   useEffect(load, [accessToken, processId])
 
-  const availableTransitions = process
-    ? transitions.filter(
-        (t) => t.source_state.public_id === process.state.public_id && t.authorized_role.name === currentUser?.role
-      )
-    : []
+  const canUpload = can(process, 'upload_document')
 
   const handleChangeState = async (targetStatePublicId: string) => {
     if (!accessToken || !processId) return
@@ -130,15 +127,15 @@ export function TrazabilidadSection() {
         </div>
         {availableTransitions.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {availableTransitions.map((t) => (
+            {availableTransitions.map((target) => (
               <button
-                key={t.public_id}
-                onClick={() => handleChangeState(t.target_state.public_id)}
+                key={target.public_id}
+                onClick={() => handleChangeState(target.public_id)}
                 disabled={isChangingState}
                 className="btn-primary gap-2.5 font-bold text-sm px-4 py-2.5 disabled:opacity-50"
               >
                 <Send size={16} />
-                {t.target_state.name}
+                {target.name}
               </button>
             ))}
           </div>
@@ -157,7 +154,7 @@ export function TrazabilidadSection() {
         </div>
       )}
 
-      <TeamPanel processId={process.public_id} />
+      <TeamPanel processId={process.public_id} canManage={can(process, 'manage_team')} />
 
       {/* Tabs */}
       <div className="flex border-b border-[var(--color-border)]">
@@ -243,14 +240,14 @@ export function TrazabilidadSection() {
                     e.target.value = ''
                   }}
                 />
-                <button
+                {canUpload && <button
                   onClick={() => fileInputs.current[item.document_type.public_id]?.click()}
                   disabled={uploadingType === item.document_type.public_id}
                   className="p-1.5 rounded-lg transition-colors text-[var(--color-text-dim)] hover:text-[var(--color-primary)] disabled:opacity-50"
                   title={item.document ? 'Cargar nueva versión' : 'Cargar documento'}
                 >
                   <Upload size={16} />
-                </button>
+                </button>}
               </div>
             </div>
           ))}

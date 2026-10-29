@@ -5,7 +5,7 @@ import { getSectionMeta } from './sectionMeta'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useAppStore } from '@/stores/app.store'
 import { NAV_ITEMS, TUTOR_ROUTE_SECTIONS } from '@/constants'
-import { isCoordinationUser, isStudentRole } from '@/config/access'
+import { hasModule } from '@/config/access'
 
 interface DashboardLayoutProps {
   onLogout: () => void
@@ -25,12 +25,12 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
     NAV_ITEMS.find(item => item.path === location.pathname) ||
     NAV_ITEMS.find(item => location.pathname.startsWith(`${item.path}/`)) ||
     NAV_ITEMS[0]
-  const isStudent = isStudentRole(currentUser.role)
+  const isStudent = hasModule(currentUser, 'workspace-student')
   const tutorSection = TUTOR_ROUTE_SECTIONS.find((r) =>
     r.exact ? location.pathname === r.prefix : location.pathname === r.prefix || location.pathname.startsWith(`${r.prefix}/`)
   )
   const activeSection = tutorSection?.section ?? (isStudent && activeItem.id === 'trazabilidad' ? 'tramites' : activeItem.id)
-  const meta = getSectionMeta(activeSection, isStudent, isCoordinationUser(currentUser))
+  const meta = getSectionMeta(activeSection, isStudent, hasModule(currentUser, 'workspace-coordination'))
 
   return (
     // .dashboard-shell activa los tokens de la identidad de Ingeniería (ver globals.css)

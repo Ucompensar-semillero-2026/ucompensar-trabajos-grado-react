@@ -4,15 +4,15 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import App from './App'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
+import { modulesFor } from '@/test/users'
 
 const student: User = {
   id: 'student-public-id',
   name: 'Estudiante de prueba',
   initials: 'EP',
   email: 'estudiante@ucompensar.edu.co',
-  role: 'estudiante',
-  institutionalRoles: ['Estudiante'],
-  authMethod: 'credentials',
+  roles: ['estudiante'],
+  modules: modulesFor(['estudiante']),
 }
 
 function LocationProbe() {

@@ -5,8 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import { STUDENT_NAV_GROUPS, TUTOR_NAV_GROUPS } from '@/constants'
-import { isTutorWorkspaceUser } from '@/config/access'
-import { homePathFor } from '@/config/roles'
+import { hasModule, homePathFor } from '@/config/access'
 import type { User } from '@/types'
 import type { DeliverableOut, StageOut, WorkPlanOut } from '@/services/workplan.service'
 import type { TutorOverviewOut, TutorProjectOut } from '@/services/tutor.service'
@@ -29,10 +28,10 @@ import { workPlanApi } from '@/services/workplan.service'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TutorPanel, TutorProjectsPage, TutorReviewsPage, TutorStatsPage } from './TutorPages'
 import { ProjectExpediente } from './ProjectExpediente'
-import { TeamPanel } from './TeamPanel'
+import { makeUser, modulesFor } from '@/test/users'
 
-const tutorUser: User = { id: 'tutor-1', name: 'Andres Consultor', initials: 'AC', email: 't@ucompensar.edu.co', role: 'tutor_investigador', institutionalRoles: ['Docente'], authMethod: 'sso' }
-const studentUser: User = { id: 'student-1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', role: 'estudiante', institutionalRoles: ['Estudiante'], authMethod: 'sso' }
+const tutorUser: User = { id: 'tutor-1', name: 'Andres Consultor', initials: 'AC', email: 't@ucompensar.edu.co', roles: ['docente'], modules: modulesFor(['docente']) }
+const studentUser: User = { id: 'student-1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', roles: ['estudiante'], modules: modulesFor(['estudiante']) }
 
 const project = (overrides: Partial<TutorProjectOut> = {}): TutorProjectOut => ({
   process_public_id: 'p1',
@@ -143,12 +142,13 @@ describe('menú y rol del tutor', () => {
   })
 
   it('only a pure teacher gets the tutor workspace; coordination keeps its own menu and home', () => {
-    expect(isTutorWorkspaceUser({ institutionalRoles: ['Docente'] })).toBe(true)
-    for (const mixed of [['Docente', 'Coordinador'], ['Docente', 'Administrador'], ['Docente', 'ComiteGrado'], ['Estudiante']] as const) {
-      expect(isTutorWorkspaceUser({ institutionalRoles: [...mixed] })).toBe(false)
+    // El espacio de trabajo lo decide el backend (modules de /auth/me); aquí se usa el espejo de pruebas.
+    expect(hasModule(makeUser(['docente']), 'workspace-tutor')).toBe(true)
+    for (const mixed of [['docente', 'coordinador'], ['docente', 'administrador'], ['docente', 'comite_grado'], ['estudiante']]) {
+      expect(hasModule(makeUser(mixed), 'workspace-tutor')).toBe(false)
     }
-    expect(homePathFor(['Docente'])).toBe('/tutor')
-    expect(homePathFor(['Coordinador', 'Docente'])).toBe('/dashboard')
+    expect(homePathFor(modulesFor(['docente']))).toBe('/tutor')
+    expect(homePathFor(modulesFor(['coordinador', 'docente']))).toBe('/dashboard')
   })
 })
 
@@ -373,30 +373,5 @@ describe('Expediente del proyecto', () => {
 
     expect(await screen.findByText('Entregable editado · Propuesta inicial')).toBeInTheDocument()
     expect(screen.getByText('fecha límite: 2026-03-20 → 2026-04-01')).toBeInTheDocument()
-  })
-})
-
-describe('Equipo del proceso (asignación explícita)', () => {
-  it('lets coordination assign a candidate as tutor and never offers it to non-assigners', async () => {
-    const user = userEvent.setup()
-    useAppStore.setState({ currentUser: { ...tutorUser, id: 'coord', role: 'coordinador', institutionalRoles: ['Coordinador'] } })
-    vi.mocked(processesApi.team).mockResolvedValue([{ public_id: 'm1', user: { public_id: 'student-1', full_name: 'Ana Estudiante' }, process_role: 'estudiante', assigned_at: '', active: true }] as never)
-    vi.mocked(processesApi.teamCandidates).mockResolvedValue([{ public_id: 'u9', full_name: 'Andres Consultor' }] as never)
-    vi.mocked(processesApi.addTeamMember).mockResolvedValue({} as never)
-    renderPage(<TeamPanel processId="p1" />)
-
-    expect(await screen.findByText('Este proceso aún no tiene tutor asignado.')).toBeInTheDocument()
-    await user.selectOptions(await screen.findByLabelText('Docente a asignar como tutor'), 'u9')
-    await user.click(screen.getByRole('button', { name: 'Asignar como tutor' }))
-
-    expect(processesApi.addTeamMember).toHaveBeenCalledWith('token', 'p1', 'u9', 'tutor')
-  })
-
-  it('hides the assignment controls from a teacher', async () => {
-    renderPage(<TeamPanel processId="p1" />)
-
-    expect(await screen.findByText(/Andres Consultor/)).toBeInTheDocument()
-    expect(screen.queryByLabelText('Docente a asignar como tutor')).not.toBeInTheDocument()
-    expect(processesApi.teamCandidates).not.toHaveBeenCalled()
   })
 })

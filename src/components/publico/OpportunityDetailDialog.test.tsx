@@ -21,15 +21,15 @@ vi.mock('@/services/processes.service', () => ({ processesApi: { list: vi.fn(), 
 import { applicationsService } from '@/services/applications.service'
 import { modalitiesApi } from '@/services/modalities.service'
 import { processesApi } from '@/services/processes.service'
+import { modulesFor } from '@/test/users'
 
 const student: User = {
   id: 'student-public-id',
   name: 'Estudiante de prueba',
   initials: 'EP',
   email: 'estudiante@ucompensar.edu.co',
-  role: 'estudiante',
-  institutionalRoles: ['Estudiante'],
-  authMethod: 'sso',
+  roles: ['estudiante'],
+  modules: modulesFor(['estudiante']),
 }
 
 const offer = projectOffers.find((item) => item.status === 'Disponible' && !applicationsService.isAtCapacity(item))!

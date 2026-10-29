@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import type { PublicFlash } from '@/services/sessionFlash'
 import { MODALITY_LABELS, PROPOSAL_LIMITS, proposalsApi, type ProposalOut, type SuggestedModality } from '@/services/proposals.service'
+import { hasModule } from '@/config/access'
 
 export const IDEA_SECTION_ID = 'proponer-idea'
 const DRAFT_KEY = 'ucomp_idea_draft'
@@ -127,7 +128,8 @@ export function IdeaProposalSection() {
   const location = useLocation()
   const accessToken = useAppStore((s) => s.accessToken)
   const user = useAppStore((s) => s.currentUser)
-  const isStudent = user?.role === 'estudiante'
+  // Presentar propuestas: módulo de estudiante que da el backend (GET /auth/me).
+  const isStudent = hasModule(user, 'mis-propuestas')
   const [draft, setDraft] = useState<Draft>(readDraft)
   const [error, setError] = useState<string | null>(null) // errores del servidor, de rol o de red
   const [attempted, setAttempted] = useState(false)

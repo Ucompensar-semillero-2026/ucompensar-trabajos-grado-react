@@ -9,8 +9,8 @@ const backendUser = {
   public_id: 'student-public-id',
   full_name: 'Estudiante de Prueba',
   email: 'estudiante@ucompensar.edu.co',
-  role: { name: 'estudiante' },
-  institutional_roles: ['Estudiante'],
+  roles: ['estudiante'],
+  modules: ['dashboard', 'proceso', 'mis-propuestas', 'workspace-student'],
 }
 
 interface Outcome {

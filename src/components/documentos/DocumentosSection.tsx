@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState, useMemo } from 'react'
 import { Card, Button, Badge, EmptyState, SearchField } from '@/components/ui'
 import { Check, X, ShieldCheck, Eye, Download, Filter, RefreshCw, FileSearch } from 'lucide-react'
-import { canReviewDocuments } from '@/config/access'
+import { can } from '@/config/actions'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError, resolveFileUrl } from '@/services/http'
 import { documentsApi, type ProcessDocumentOut } from '@/services/documents.service'
@@ -10,6 +10,8 @@ import { formatRelativeDate } from '@/utils/format'
 import { DocumentViewerModal, type ViewerDocument } from './DocumentViewerModal'
 
 interface Row extends ProcessDocumentOut {
+  // allowed_actions del trámite del documento incluye review_document
+  canReview: boolean
   studentName: string
 }
 
@@ -21,8 +23,6 @@ const STATUS_BADGE: Record<ProcessDocumentOut['status'], { label: string; varian
 
 export function DocumentosSection() {
   const accessToken = useAppStore((s) => s.accessToken)
-  const currentUser = useAppStore((s) => s.currentUser)
-  const canReview = currentUser ? canReviewDocuments(currentUser.role) : false
 
   const [rows, setRows] = useState<Row[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -51,11 +51,15 @@ export function DocumentosSection() {
       .list(accessToken)
       .then(async (processes) => {
         const perProcess = await Promise.all(
-          processes.map((p) =>
-            documentsApi
-              .listForProcess(accessToken, p.public_id)
-              .then((docs) => docs.map((d) => ({ ...d, studentName: p.student.full_name })))
-          )
+          processes.map(async (p) => {
+            // Revisar depende del trámite: allowed_actions de su detalle (contrato 6.1).
+            const [docs, detail] = await Promise.all([
+              documentsApi.listForProcess(accessToken, p.public_id),
+              processesApi.get(accessToken, p.public_id),
+            ])
+            const canReview = can(detail, 'review_document')
+            return docs.map((d) => ({ ...d, studentName: p.student.full_name, canReview }))
+          })
         )
         setRows(perProcess.flat().sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()))
       })
@@ -323,7 +327,7 @@ export function DocumentosSection() {
                             <Download size={15} />
                           </button>
 
-                          {canReview && doc.status === 'pendiente' && (
+                          {doc.canReview && doc.status === 'pendiente' && (
                             <>
                               <Button
                                 variant="outline"
@@ -405,7 +409,7 @@ export function DocumentosSection() {
         isOpen={isViewerOpen}
         onClose={() => setIsViewerOpen(false)}
         document={activeViewerDoc}
-        canReview={canReview}
+        canReview={rows.find((r) => r.public_id === activeViewerDoc?.public_id)?.canReview ?? false}
         onApprove={(doc) => handleApprove(doc)}
         onReject={(doc, comment) => handleReject(doc, comment)}
         isReviewing={Boolean(reviewingId)}

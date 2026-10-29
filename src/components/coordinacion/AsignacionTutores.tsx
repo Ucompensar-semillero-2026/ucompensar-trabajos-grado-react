@@ -12,16 +12,6 @@ import { lockScroll } from '@/utils/scrollLock'
 import { LoadError, projectTitle } from '@/components/tutor/tutorUi'
 
 const PAGE_SIZE = 15
-const ROLE_LABEL: Record<string, string> = {
-  tutor_investigador: 'Tutor de investigación',
-  tutor_emprendedor: 'Tutor de emprendimiento',
-  tutor_consultor: 'Tutor consultor',
-  docente_curso: 'Docente de curso',
-  coordinador_movilidad: 'Coordinador de movilidad',
-  evaluador: 'Evaluador',
-  grupo_investigacion: 'Grupo de investigación',
-}
-
 const fieldClass =
   'rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]'
 
@@ -120,7 +110,7 @@ function AssignTutorModal({ process, onClose, onDone }: { process: CoordinationP
                       <input type="radio" name="tutor" value={c.public_id} checked={selected === c.public_id} onChange={() => setSelected(c.public_id)} className="h-4 w-4 accent-[#FF6500]" />
                       <span>
                         <span className="block text-[14px] font-semibold text-[var(--color-text)]">{c.full_name}</span>
-                        <span className="block text-[12px] text-[var(--color-text-muted)]">{ROLE_LABEL[c.role.name] ?? c.role.name}</span>
+                        <span className="block text-[12px] text-[var(--color-text-muted)]">{c.email}</span>
                       </span>
                     </span>
                     <Badge variant="blue">{c.active_projects} {c.active_projects === 1 ? 'proyecto' : 'proyectos'}</Badge>

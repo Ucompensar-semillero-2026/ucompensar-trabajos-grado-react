@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, ChevronDown, Moon, Sun, LogOut } from 'lucide-react'
 import { SearchField } from '@/components/ui/SearchField'
-import { INSTITUTIONAL_ROLE_LABELS } from '@/config/roles'
+import { roleLabels } from '@/config/roles'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
 
@@ -36,9 +36,7 @@ export function Topbar({ onLogout, searchQuery, onSearchChange }: TopbarProps) {
     }
   }, [])
 
-  const roleLabel = currentUser
-    ? currentUser.institutionalRoles.map((r) => INSTITUTIONAL_ROLE_LABELS[r]).join(' · ') || currentUser.role
-    : ''
+  const roleLabel = currentUser ? roleLabels(currentUser.roles).join(' · ') : ''
 
   const iconButton =
     'flex h-10 w-10 items-center justify-center rounded-xl border-none bg-transparent text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-secondary)] cursor-pointer'

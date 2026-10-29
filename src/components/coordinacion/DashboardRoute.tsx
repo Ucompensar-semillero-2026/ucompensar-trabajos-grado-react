@@ -1,5 +1,5 @@
 import { DashboardSection } from '@/components/dashboard/DashboardSection'
-import { isCoordinationUser } from '@/config/access'
+import { hasModule } from '@/config/access'
 import { useAppStore } from '@/stores/app.store'
 import { CoordinationDashboard } from './CoordinationDashboard'
 
@@ -7,5 +7,5 @@ import { CoordinationDashboard } from './CoordinationDashboard'
 // el resto mantiene el tablero general. Solo cambia la presentación, no los permisos.
 export function DashboardRoute() {
   const user = useAppStore((s) => s.currentUser)
-  return user && isCoordinationUser(user) ? <CoordinationDashboard /> : <DashboardSection />
+  return hasModule(user, 'workspace-coordination') ? <CoordinationDashboard /> : <DashboardSection />
 }
