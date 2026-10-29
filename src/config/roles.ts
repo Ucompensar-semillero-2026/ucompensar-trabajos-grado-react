@@ -65,7 +65,8 @@ const HOME_BY_ROLE: Array<[InstitutionalRole, string]> = [
   ['Administrador', '/dashboard'],
   ['Coordinador', '/dashboard'],
   ['ComiteGrado', '/comites'],
-  ['Docente', '/tramites'],
+  // Espacio de trabajo del tutor (ver TUTOR_NAV_GROUPS)
+  ['Docente', '/tutor'],
   // "Inicio" del menú estudiantil (STUDENT_NAV_GROUPS) es /dashboard
   ['Estudiante', '/dashboard'],
   ['Externo', '/externo'],

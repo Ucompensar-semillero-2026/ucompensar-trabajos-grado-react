@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, useMemo } from 'react'
-import { Card, Button, Badge } from '@/components/ui'
-import { Check, X, ShieldCheck, Eye, Download, Search, Filter, RefreshCw } from 'lucide-react'
+import { Card, Button, Badge, EmptyState, SearchField } from '@/components/ui'
+import { Check, X, ShieldCheck, Eye, Download, Filter, RefreshCw, FileSearch } from 'lucide-react'
 import { canReviewDocuments } from '@/config/access'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError, resolveFileUrl } from '@/services/http'
@@ -149,7 +149,7 @@ export function DocumentosSection() {
         {/* Header */}
         <div className="px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-[16px] font-bold text-[var(--color-text)] tracking-tight">Repositorio de Documentos</h2>
+            <h2 className="text-[18px] font-bold text-[var(--color-text)] tracking-tight">Repositorio de Documentos</h2>
             <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
               Visualiza, revisa y gestiona los documentos académicos cargados en los trámites
             </p>
@@ -176,16 +176,13 @@ export function DocumentosSection() {
 
         {/* Search and Filters Bar */}
         <div className="mx-6 mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[240px] max-w-md">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)]" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por archivo, estudiante o tipo…"
-              className="w-full pl-9 pr-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl text-[12.5px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-all"
-            />
-          </div>
+          <SearchField
+            label="Buscar documentos"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por archivo, estudiante o tipo…"
+            wrapperClassName="min-w-[240px] max-w-md flex-1"
+          />
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl px-2.5 py-1.5 text-[12px]">
@@ -239,25 +236,30 @@ export function DocumentosSection() {
           {isLoading ? (
             <p className="px-6 py-8 text-[12.5px] text-[var(--color-text-dim)]">Cargando documentos…</p>
           ) : filteredRows.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-[13px] font-medium text-[var(--color-text-muted)]">
-                {rows.length === 0
-                  ? 'Nadie ha cargado documentos todavía. Súbelos desde la trazabilidad de un trámite.'
-                  : 'No se encontraron documentos con los filtros aplicados.'}
-              </p>
-              {rows.length > 0 && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('')
-                    setStatusFilter('todos')
-                    setTypeFilter('todos')
-                  }}
-                  className="mt-2 text-[12px] text-[var(--color-primary)] font-bold hover:underline"
-                >
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={FileSearch}
+              title={rows.length === 0 ? 'Aún no tienes documentos' : 'Sin resultados'}
+              description={
+                rows.length === 0
+                  ? 'Cuando cargues documentos en tus trámites, podrás visualizarlos y gestionarlos desde aquí.'
+                  : 'No se encontraron documentos con los filtros aplicados.'
+              }
+              action={
+                rows.length > 0 ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('')
+                      setStatusFilter('todos')
+                      setTypeFilter('todos')
+                    }}
+                  >
+                    Limpiar filtros
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <table className="w-full border-collapse">
               <thead>

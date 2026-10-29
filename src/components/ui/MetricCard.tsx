@@ -21,7 +21,7 @@ export function MetricCard({ label, value, sub, subColor, icon }: MetricCardProp
           </div>
         )}
       </div>
-      <div className="text-[32px] font-bold text-[var(--color-text)] leading-none tracking-tight mb-2">
+      <div className="font-display text-[34px] font-extrabold text-[var(--color-text)] leading-none tracking-tight mb-2">
         {value}
       </div>
       <div

@@ -13,8 +13,13 @@ vi.mock('@/services/auth.service', () => ({
 
 vi.mock('@/config/msal', () => ({
   isMicrosoftLoginConfigured: true,
-  loginRequest: { scopes: ['openid', 'profile', 'email'], prompt: 'select_account' },
-  msalInstance: { loginRedirect: vi.fn(async () => {}) },
+  loginRequest: { scopes: ['openid', 'profile', 'email'], prompt: 'login' },
+  msalInstance: {
+    loginRedirect: vi.fn(async () => {}),
+    logoutRedirect: vi.fn(async () => {}),
+    getActiveAccount: vi.fn(() => null),
+    getAllAccounts: vi.fn(() => []),
+  },
   clearMicrosoftSession: vi.fn(async () => {}),
   getMsalRedirectOutcome: () => ({ result: null, errorCode: null, errorMessage: null }),
 }))
@@ -106,14 +111,14 @@ describe('useAuth', () => {
     expect(localStorage.getItem('ucomp_has_session')).toBe('true')
   })
 
-  it('logout clears the session and goes to /login', async () => {
+  it('logout (manual) clears the session and goes to the logout confirmation', async () => {
     const { result } = renderAuth()
     await waitFor(() => expect(result.current.auth.isRestoringSession).toBe(false))
     act(() => signIn())
 
     act(() => result.current.auth.logout())
 
-    expect(result.current.path).toBe('/login')
+    expect(result.current.path).toBe('/sesion-cerrada')
     expect(useAppStore.getState().isAuthenticated).toBe(false)
     expect(clearMicrosoftSession).toHaveBeenCalledTimes(1)
   })

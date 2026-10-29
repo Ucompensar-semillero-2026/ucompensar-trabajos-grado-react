@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Plus, Search, GitBranch,
-  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy,
+  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy, Flag, Users, ClipboardList, FileCheck2, UserCheck, Lightbulb, Layers,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
 
@@ -17,6 +17,10 @@ export const NAV_ITEMS: Array<{
   path: string
 }> = [
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, group: 'Principal', path: '/dashboard' },
+  { id: 'proceso', label: 'Mi proceso de grado', Icon: Flag, group: 'Principal', path: '/mi-proceso' },
+  { id: 'portafolio', label: 'Portafolio de proyectos', Icon: Layers, group: 'Gestión', path: '/coordinacion/portafolio' },
+  { id: 'propuestas', label: 'Propuestas estudiantiles', Icon: Lightbulb, group: 'Gestión', path: '/coordinacion/propuestas' },
+  { id: 'asignacion', label: 'Asignación de tutores', Icon: UserCheck, group: 'Gestión', path: '/coordinacion/asignacion' },
   { id: 'tramites', label: 'Mis trámites', Icon: FileText, group: 'Principal', path: '/tramites' },
   { id: 'nuevo', label: 'Nuevo trámite', Icon: Plus, group: 'Principal', path: '/nuevo' },
   { id: 'buscar', label: 'Buscar cédula', Icon: Search, group: 'Principal', path: '/buscar' },
@@ -40,6 +44,8 @@ export interface StudentNavItem {
   path?: string
   href?: string
   activePaths?: string[]
+  /** Activa solo con la ruta exacta (p. ej. el panel, cuyo prefijo comparten sus subrutas). */
+  exact?: boolean
 }
 
 export const SUPPORT_URL = 'https://ucompensar.edu.co/soporte-crm/'
@@ -49,13 +55,15 @@ export const STUDENT_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] 
     label: 'Principal',
     items: [
       { key: 'inicio', label: 'Inicio', Icon: LayoutDashboard, path: '/dashboard' },
+      { key: 'proceso', label: 'Mi proceso de grado', Icon: Flag, path: '/mi-proceso' },
       { key: 'tramites', label: 'Mis trámites', Icon: FileText, path: '/tramites', activePaths: ['/tramites', '/trazabilidad'] },
     ],
   },
   {
     label: 'Seguimiento académico',
     items: [
-      { key: 'documentos', label: 'Mis documentos', Icon: FolderOpen, path: '/documentos' },
+      { key: 'propuestas', label: 'Mis propuestas', Icon: Lightbulb, path: '/mis-propuestas' },
+      { key: 'documentos', label: 'Documentos y entregables', Icon: FolderOpen, path: '/documentos' },
       { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
     ],
   },
@@ -63,6 +71,42 @@ export const STUDENT_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] 
     label: 'Ayuda',
     items: [{ key: 'soporte', label: 'Ayuda y soporte', Icon: LifeBuoy, href: SUPPORT_URL }],
   },
+]
+
+// Menú del tutor (docente). Es presentación: cada endpoint verifica en el backend que la persona sea
+// tutora ACTIVA del proceso (process_team). Ver isTutorWorkspaceUser en config/access.ts.
+export const TUTOR_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] }> = [
+  {
+    label: 'Principal',
+    items: [{ key: 'panel', label: 'Panel del tutor', Icon: LayoutDashboard, path: '/tutor', exact: true }],
+  },
+  {
+    label: 'Seguimiento académico',
+    items: [
+      { key: 'proyectos', label: 'Mis proyectos asignados', Icon: Users, path: '/tutor/proyectos' },
+      { key: 'planes', label: 'Planes de trabajo', Icon: ClipboardList, path: '/tutor/planes' },
+      { key: 'revisiones', label: 'Plantillas y revisiones', Icon: FileCheck2, path: '/tutor/revisiones' },
+    ],
+  },
+  {
+    label: 'Análisis y comunicación',
+    items: [
+      { key: 'estadisticas', label: 'Estadísticas e informes', Icon: BarChart3, path: '/tutor/estadisticas' },
+      { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
+      { key: 'soporte', label: 'Ayuda y soporte', Icon: LifeBuoy, href: SUPPORT_URL },
+    ],
+  },
+]
+
+// Rutas del espacio del tutor -> sección (título y descripción de la página).
+export const TUTOR_ROUTE_SECTIONS: Array<{ prefix: string; exact?: boolean; section: NavSection }> = [
+  { prefix: '/coordinacion/proyectos', section: 'asignacion' },
+  { prefix: '/mis-propuestas', section: 'mis-propuestas' },
+  { prefix: '/tutor', exact: true, section: 'tutor' },
+  { prefix: '/tutor/proyectos', section: 'tutor-proyectos' },
+  { prefix: '/tutor/planes', section: 'tutor-planes' },
+  { prefix: '/tutor/revisiones', section: 'tutor-revisiones' },
+  { prefix: '/tutor/estadisticas', section: 'tutor-estadisticas' },
 ]
 
 export const MODALIDADES = [

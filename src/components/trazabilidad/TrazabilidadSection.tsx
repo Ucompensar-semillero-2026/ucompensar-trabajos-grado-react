@@ -9,6 +9,7 @@ import { processesApi, type ProcessOut, type ProcessHistoryOut } from '@/service
 import { workflowApi, type AllowedTransitionOut } from '@/services/workflow.service'
 import { formatRelativeDate } from '@/utils/format'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
+import { TeamPanel } from '@/components/tutor/TeamPanel'
 
 const CHECKLIST_COLORS: Record<string, string> = {
   aprobado: 'var(--color-teal)',
@@ -155,6 +156,8 @@ export function TrazabilidadSection() {
           <p className="text-xs text-[var(--color-text-dim)]">{process.state.description}</p>
         </div>
       )}
+
+      <TeamPanel processId={process.public_id} />
 
       {/* Tabs */}
       <div className="flex border-b border-[var(--color-border)]">

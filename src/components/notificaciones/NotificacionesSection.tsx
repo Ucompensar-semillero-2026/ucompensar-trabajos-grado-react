@@ -90,7 +90,7 @@ export function NotificacionesSection() {
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <Bell size={16} className="text-[var(--color-primary)]" />
-          <h2 className="text-[13px] font-bold text-[var(--color-text)]">Mis notificaciones</h2>
+          <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Mis notificaciones</h2>
         </div>
         {myNotifications.length === 0 ? (
           <p className="text-[12px] text-[var(--color-text-dim)]">No tienes notificaciones registradas todavía.</p>

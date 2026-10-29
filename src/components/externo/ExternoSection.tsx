@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge , EmptyState} from '@/components/ui'
 import { Select } from '@/components/ui/Input'
 import { Globe2, PlusCircle, FileSignature } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -126,7 +126,7 @@ export function ExternoSection() {
         <div className="px-4 py-3.5 border-b border-[var(--color-border)] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Globe2 size={16} className="text-[var(--color-primary)]" />
-            <h2 className="text-[13px] font-bold text-[var(--color-text)]">Entidades externas</h2>
+            <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Entidades externas</h2>
           </div>
           {isAdmin && (
             <button
@@ -154,7 +154,7 @@ export function ExternoSection() {
         )}
 
         {entities.length === 0 ? (
-          <p className="px-4 py-6 text-[12px] text-[var(--color-text-dim)]">No hay entidades registradas.</p>
+          <EmptyState icon={Globe2} title="Aún no hay entidades externas" description="Las entidades registradas aparecerán aquí junto con sus aprobaciones." />
         ) : (
           <div className="p-2 flex flex-col gap-1">
             {entities.map((e) => (
@@ -187,7 +187,7 @@ export function ExternoSection() {
         ) : (
           <>
             <Card>
-              <h3 className="text-[14px] font-bold text-[var(--color-text)] mb-1">{selected.name}</h3>
+              <h3 className="text-[16px] font-bold text-[var(--color-text)] mb-1">{selected.name}</h3>
               <p className="text-[11.5px] text-[var(--color-text-dim)]">
                 {selected.representative && <>Representante: {selected.representative} · </>}
                 {selected.email && <>{selected.email}</>}

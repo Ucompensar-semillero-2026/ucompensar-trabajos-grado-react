@@ -29,3 +29,6 @@ Thumbs.db
 node_modules/
 dist/
 .vite/
+
+.env.local
+.env.*.local

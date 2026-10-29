@@ -69,7 +69,7 @@ export function ReportesSection() {
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex items-center justify-between">
           <div>
-            <h2 className="text-[16px] font-bold text-[var(--color-text)] tracking-tight">Trámites por modalidad</h2>
+            <h2 className="text-[18px] font-bold text-[var(--color-text)] tracking-tight">Trámites por modalidad</h2>
             <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">Distribución de trámites por tipo de trabajo de grado</p>
           </div>
           <Button variant="outline" size="sm" className="font-bold">Exportar Excel</Button>

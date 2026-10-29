@@ -13,6 +13,17 @@ import { hasAnyRole, type InstitutionalRole } from '@/config/roles'
 // cada quien (ej. un estudiante solo ve sus propios trámites).
 export const MODULE_ROLES: Partial<Record<NavSection, readonly InstitutionalRole[]>> = {
   nuevo: ['Estudiante'],
+  proceso: ['Estudiante'],
+  'mis-propuestas': ['Estudiante'],
+  // Evaluación de propuestas estudiantiles: el backend exige coordinador/administrativo.
+  propuestas: ['Coordinador', 'Administrador'],
+  // Coordinación académica: asignar tutores y supervisar. El backend exige coordinador/administrativo.
+  asignacion: ['Coordinador', 'Administrador'],
+  // Portafolio general: el backend exige coordinador/administrativo en /api/coordination/portfolio.
+  portafolio: ['Coordinador', 'Administrador'],
+  // Espacio del tutor: la ruta la abren Docente y Coordinador (que también puede tutorizar); el backend
+  // decide qué proyectos devuelve según la asignación real en process_team.
+  tutor: ['Docente', 'Coordinador'],
   buscar: ['Administrador', 'Coordinador', 'ComiteGrado', 'Docente', 'Consulta/Biblioteca'],
   comites: ['ComiteGrado', 'Coordinador', 'Administrador'],
   administrativo: ['Administrador', 'Coordinador'],
@@ -32,6 +43,19 @@ export const SECTION_ROLES: Partial<Record<NavSection, string[]>> = {
 // El menú estudiantil se elige por este rol (solo presentación; los permisos reales siguen en SECTION_ROLES y el backend).
 export function isStudentRole(role: string): boolean {
   return role === 'estudiante'
+}
+
+// El menú del tutor es para el DOCENTE puro. Quien además es coordinador, comité, administrador o
+// estudiante conserva el menú de su rol principal. Ser docente NO asigna proyectos: eso es process_team.
+export function isTutorWorkspaceUser(user: Pick<User, 'institutionalRoles'>): boolean {
+  const roles = user.institutionalRoles
+  return roles.includes('Docente') && !roles.some((r) => ['Coordinador', 'Administrador', 'ComiteGrado', 'Estudiante'].includes(r))
+}
+
+// Coordinación académica: quien tiene el rol institucional Coordinador o Administrador (y no es estudiante).
+export function isCoordinationUser(user: Pick<User, 'institutionalRoles'>): boolean {
+  const roles = user.institutionalRoles
+  return !roles.includes('Estudiante') && (roles.includes('Coordinador') || roles.includes('Administrador'))
 }
 
 export function canAccessModule(section: NavSection, roles: InstitutionalRole[]): boolean {

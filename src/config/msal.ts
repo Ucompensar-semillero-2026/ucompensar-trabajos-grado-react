@@ -21,7 +21,9 @@ export const msalInstance = new PublicClientApplication({
     clientId,
     authority: `https://login.microsoftonline.com/${tenantId}`,
     redirectUri: window.location.origin,
-    postLogoutRedirectUri: `${window.location.origin}/login`,
+    // La app NO usa logoutRedirect/logoutPopup (mostrarían pantallas de Microsoft); se conserva el origen registrado
+    // solo como valor seguro por si algún día se invoca un logout de Microsoft de forma explícita.
+    postLogoutRedirectUri: window.location.origin,
   },
   cache: {
     cacheLocation: 'sessionStorage',
@@ -30,7 +32,9 @@ export const msalInstance = new PublicClientApplication({
 
 export const loginRequest: RedirectRequest = {
   scopes: ['openid', 'profile', 'email'],
-  prompt: 'select_account',
+  // 'login' fuerza autenticación interactiva en cada inicio de sesión: no se reutiliza en silencio la sesión
+  // anterior de Microsoft del navegador.
+  prompt: 'login',
 }
 
 // Resultado de la vuelta desde login.microsoftonline.com. Se resuelve una

@@ -387,3 +387,67 @@
     transform: none;
   }
 }
+
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Identidad Ingeniería del dashboard autenticado.
+   Solo modo claro y solo dentro de .dashboard-shell (DashboardLayout): el login,
+   las páginas públicas y el tema oscuro conservan sus valores.
+   Azul marino = estructura · azul institucional = enlaces/iconos informativos ·
+   naranja = botones principales, estado activo y acentos.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root:not(.dark) .dashboard-shell {
+  --color-primary: #FF6500;
+  --color-primary-hover: #E05A00;
+  --color-primary-soft: rgba(255, 101, 0, 0.1);
+
+  --color-secondary: #052B41;
+  --color-secondary-hover: #073B57;
+  --color-secondary-soft: rgba(5, 43, 65, 0.08);
+
+  --color-info: #0876B9;
+  --color-info-soft: rgba(8, 118, 185, 0.1);
+
+  --color-bg: #F3F7FB;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #F8FBFD;
+  --color-border: #DAE4EE;
+  --color-text: #082235;
+  --color-text-muted: #455D70;
+  --color-text-dim: #5E7385;
+
+  --shadow-sm: 0 1px 2px rgba(5, 43, 65, 0.06);
+  --shadow-md: 0 8px 20px -8px rgba(5, 43, 65, 0.16);
+  --radius-lg: 1rem;
+}
+
+/* Tarjetas, tablas y foco con el mismo lenguaje en todos los módulos */
+.dashboard-shell .card {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+:root:not(.dark) .dashboard-shell .th {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  background: #EEF4F9;
+}
+
+.dashboard-shell :focus-visible {
+  outline: 2px solid var(--color-info, #0876B9);
+  outline-offset: 2px;
+}
+
+/* Tipografía del dashboard: Alegreya (700/800) para títulos y encabezados de tarjetas;
+   Sarabun para el resto. Las micro-etiquetas en mayúsculas que usan <h3>/<h4> son etiquetas
+   funcionales, no títulos, así que van en Sarabun. */
+.dashboard-shell :is(h1, h2, h3, h4, h5, h6) {
+  font-family: 'Alegreya', Georgia, serif;
+}
+
+.dashboard-shell :is(h1, h2, h3, h4, h5, h6).uppercase {
+  font-family: 'Sarabun', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.08em;
+}

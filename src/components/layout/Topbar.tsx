@@ -1,134 +1,112 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, Bell, Moon, Sun, Settings, LogOut } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Bell, ChevronDown, Moon, Sun, LogOut } from 'lucide-react'
+import { SearchField } from '@/components/ui/SearchField'
+import { INSTITUTIONAL_ROLE_LABELS } from '@/config/roles'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
-import { isStudentRole } from '@/config/access'
-import type { NavSection } from '@/types'
-
-const sectionLabels: Record<NavSection, string> = {
-  dashboard: 'Dashboard',
-  tramites: 'Mis trámites',
-  nuevo: 'Nuevo trámite',
-  buscar: 'Buscar por cédula',
-  trazabilidad: 'Trazabilidad',
-  documentos: 'Documentos',
-  comites: 'Comités',
-  administrativo: 'Áreas administrativas',
-  externo: 'Entidades externas',
-  calificaciones: 'Calificaciones',
-  notificaciones: 'Notificaciones',
-  reportes: 'Reportes',
-}
-
-// Etiquetas del estudiante, alineadas con su menú.
-const studentSectionLabels: Partial<Record<NavSection, string>> = {
-  dashboard: 'Inicio',
-  documentos: 'Mis documentos',
-}
 
 interface TopbarProps {
-  activeSection: NavSection
-  onNewTramite: () => void
   onLogout: () => void
   searchQuery: string
   onSearchChange: (q: string) => void
 }
 
-export function Topbar({ activeSection, onLogout, searchQuery, onSearchChange }: TopbarProps) {
+export function Topbar({ onLogout, searchQuery, onSearchChange }: TopbarProps) {
   const { theme, toggle } = useThemeStore()
   const { currentUser } = useAppStore()
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Click outside to close user menu
+  // Cierra el menú al hacer clic fuera o al pulsar Escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false)
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsUserMenuOpen(false)
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
-  const handleLogout = () => {
-    onLogout()
-  }
+  const roleLabel = currentUser
+    ? currentUser.institutionalRoles.map((r) => INSTITUTIONAL_ROLE_LABELS[r]).join(' · ') || currentUser.role
+    : ''
+
+  const iconButton =
+    'flex h-10 w-10 items-center justify-center rounded-xl border-none bg-transparent text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-secondary)] cursor-pointer'
 
   return (
-    <header className="h-[64px] flex items-center px-6 gap-6 flex-shrink-0 relative z-30 transition-all duration-300">
-      {/* Breadcrumb / Title */}
-      <div className="flex-1">
-        <h1 className="text-[24px] font-bold text-[var(--color-primary)] font-display tracking-tight">
-          {(currentUser && isStudentRole(currentUser.role) && studentSectionLabels[activeSection]) || sectionLabels[activeSection]}
-        </h1>
-      </div>
+    <header className="relative z-30 flex h-[68px] flex-shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:gap-5 md:px-6">
+      <SearchField
+        label="Buscar trámites o documentos"
+        placeholder="Buscar trámites o documentos…"
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        wrapperClassName="min-w-0 flex-1 md:max-w-xl"
+      />
 
-      {/* Search */}
-      <div className="flex items-center gap-2.5 bg-[var(--color-surface)] border border-transparent rounded-full px-5 py-2 w-[320px] focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary-soft)] transition-all shadow-sm">
-        <Search size={16} className="text-[var(--color-text-dim)] flex-shrink-0" />
-        <input
-          type="text"
-          placeholder="Buscar trámites o documentos..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="border-none bg-transparent text-[13px] text-[var(--color-text)] outline-none w-full placeholder:text-[var(--color-text-dim)]"
-        />
-      </div>
+      <div className="ml-auto flex items-center gap-1 md:gap-2">
+        {/* Sin indicador de novedades: el backend no expone un estado leído/no leído */}
+        <Link to="/notificaciones" className={iconButton} aria-label="Ver notificaciones" title="Notificaciones">
+          <Bell size={18} aria-hidden />
+        </Link>
 
-      <div className="flex items-center gap-1.5 border-r border-[var(--color-border)] pr-4">
-        {/* Notifications */}
-        <button className="relative p-2 rounded-xl hover:bg-[var(--color-surface)] transition-all cursor-pointer text-[var(--color-text-dim)] hover:text-[var(--color-text)] border-none bg-transparent group">
-          <Bell size={18} className="transition-transform group-hover:rotate-12" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--color-primary)] rounded-full ring-2 ring-[var(--color-bg)]" />
-        </button>
-
-        {/* Theme Toggle */}
-        <button
-          onClick={toggle}
-          className="p-2 rounded-xl hover:bg-[var(--color-surface)] transition-all cursor-pointer text-[var(--color-text-dim)] hover:text-[var(--color-text)] border-none bg-transparent"
-          title="Alternar tema"
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        <button type="button" onClick={toggle} className={iconButton} title="Alternar tema" aria-label="Alternar tema">
+          {theme === 'dark' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
         </button>
       </div>
 
-      {/* User Profile Dropdown */}
       {currentUser && (
-        <div className="relative pl-1" ref={menuRef}>
+        <div className="relative border-l border-[var(--color-border)] pl-3 md:pl-5" ref={menuRef}>
           <button
-            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            className="flex items-center gap-3 hover:bg-[var(--color-surface)] px-2 py-1.5 rounded-full transition-all cursor-pointer border-none bg-transparent group"
+            type="button"
+            onClick={() => setIsUserMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={isUserMenuOpen}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border-none bg-transparent px-2 py-1.5 transition-colors hover:bg-[var(--color-bg)]"
           >
-            <div className="text-right">
-              <span className="text-[12px] font-bold text-[var(--color-text)] block">
-                {currentUser.name.split(' ')[0]}
+            <span
+              aria-hidden
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-secondary)] text-[13px] font-bold text-white"
+            >
+              {currentUser.initials}
+            </span>
+            <span className="hidden min-w-0 text-left md:block">
+              <span className="block max-w-[160px] truncate text-[13px] font-semibold leading-tight text-[var(--color-text)]">
+                {currentUser.name}
               </span>
-            </div>
-            <img 
-              src="https://api.dicebear.com/7.x/notionists/svg?seed=UCompensar&backgroundColor=f7d8a4" 
-              alt="Avatar" 
-              className="w-8 h-8 rounded-full border-2 border-[var(--color-bg)] shadow-sm object-cover transition-transform group-hover:scale-105"
-            />
+              <span className="block max-w-[160px] truncate text-[12px] leading-tight text-[var(--color-text-muted)]">
+                {roleLabel}
+              </span>
+            </span>
+            <ChevronDown size={16} aria-hidden className="hidden text-[var(--color-text-muted)] md:block" />
           </button>
 
-          {/* Popover */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-3 w-64 bg-[var(--color-surface)] rounded-2xl shadow-xl border border-[var(--color-border)] py-2 animate-in z-50 overflow-hidden">
-              <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg)]/50">
+            <div
+              role="menu"
+              className="animate-in absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] py-2 shadow-[var(--shadow-md)]"
+            >
+              <div className="border-b border-[var(--color-border)] px-5 py-3">
                 <p className="text-[14px] font-bold text-[var(--color-text)]">{currentUser.name}</p>
-                <p className="text-[11px] text-[var(--color-text-muted)] mt-1 truncate">{currentUser.email}</p>
+                <p className="mt-0.5 truncate text-[12px] text-[var(--color-text-muted)]">{currentUser.email}</p>
               </div>
               <div className="p-1.5">
-                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-[var(--color-text)] hover:bg-[var(--color-bg)] rounded-xl transition-all border-none bg-transparent text-left cursor-pointer group">
-                  <Settings size={16} className="text-[var(--color-text-dim)] group-hover:text-[var(--color-primary)]" />
-                  Configuración
-                </button>
                 <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all border-none bg-transparent text-left cursor-pointer group"
+                  type="button"
+                  role="menuitem"
+                  onClick={onLogout}
+                  className="group flex w-full cursor-pointer items-center gap-3 rounded-xl border-none bg-transparent px-4 py-2.5 text-left text-[13px] font-medium text-red-600 transition-colors hover:bg-red-50"
                 >
-                  <LogOut size={16} className="transition-transform group-hover:translate-x-1" />
+                  <LogOut size={16} aria-hidden />
                   Cerrar sesión
                 </button>
               </div>

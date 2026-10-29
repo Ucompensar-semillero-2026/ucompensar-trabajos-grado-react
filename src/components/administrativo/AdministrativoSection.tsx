@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge , EmptyState} from '@/components/ui'
 import { Select } from '@/components/ui/Input'
 import { Building2, UserCog, Stamp } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -111,10 +111,10 @@ export function AdministrativoSection() {
       <Card className="p-0 overflow-hidden h-fit">
         <div className="px-4 py-3.5 border-b border-[var(--color-border)] flex items-center gap-2">
           <Building2 size={16} className="text-[var(--color-primary)]" />
-          <h2 className="text-[13px] font-bold text-[var(--color-text)]">Áreas administrativas</h2>
+          <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Áreas administrativas</h2>
         </div>
         {areas.length === 0 ? (
-          <p className="px-4 py-6 text-[12px] text-[var(--color-text-dim)]">No hay áreas registradas.</p>
+          <EmptyState icon={Building2} title="Aún no hay áreas administrativas" description="Las áreas registradas aparecerán aquí junto con sus revisiones." />
         ) : (
           <div className="p-2 flex flex-col gap-1">
             {areas.map((a) => (

@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react'
 import {
   ArrowDown, ArrowRight, BookOpenCheck, CircleHelp, LogIn, UsersRound,
+  Lightbulb,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui'
+import { resetScrollToTop } from '@/utils/scrollLock'
+import { PublicFlashNotice } from './PublicFlashNotice'
 import { InstitutionalHeader } from './InstitutionalHeader'
+import { HeroTechOverlay } from './HeroTechOverlay'
+import { IDEA_SECTION_ID, IdeaProposalSection } from './IdeaProposalSection'
 import { ModalityCards } from './OpportunityCatalog'
 import { InstitutionalFooter } from './InstitutionalFooter'
 import { academicGuidanceResources } from './projectPlanning.data'
@@ -19,10 +24,21 @@ function scrollToSection(id: string) {
   section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
 }
 
+function goToIdeaForm() {
+  scrollToSection(IDEA_SECTION_ID)
+  // El foco al título anuncia la sección a lectores de pantalla sin provocar otro desplazamiento.
+  document.getElementById('idea-title')?.focus({ preventScroll: true })
+}
+
 export function ProjectsCatalog() {
   const currentYear = new Date().getFullYear()
   const navigate = useNavigate()
   const heroRef = useRef<HTMLElement>(null)
+
+  // Al volver al catálogo (p. ej. desde la confirmación de una postulación) se parte siempre del inicio.
+  useEffect(() => {
+    resetScrollToTop()
+  }, [])
 
   useEffect(() => {
     const hero = heroRef.current
@@ -87,12 +103,13 @@ export function ProjectsCatalog() {
   return (
     <div className="projects-catalog min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <InstitutionalHeader />
+      <PublicFlashNotice />
       <main>
         <section ref={heroRef} className="overflow-hidden bg-[var(--engineering-navy)] text-white">
           <div className="relative">
             <div className="engineering-hero-panel relative z-10 px-5 py-12 text-white sm:px-8 sm:py-16 md:absolute md:inset-y-0 md:left-0 md:flex md:w-[72%] md:items-center md:py-8 lg:pl-16 xl:w-[68%] xl:py-16">
               <div className="mx-auto w-full max-w-3xl">
-                <p className="hero-reveal hero-reveal--label inline-flex rounded-full border border-[var(--engineering-sand)] bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[.2em] text-white">Oportunidades académicas</p>
+                <p className="hero-reveal hero-reveal--label inline-flex rounded-full border border-white/90 bg-transparent px-4 py-2 text-[11px] font-bold uppercase tracking-[.2em] text-white">Oportunidades académicas</p>
                 <span aria-hidden="true" className="hero-reveal hero-reveal--title mt-7 block h-1 w-16 rounded-full bg-[var(--engineering-teal)]" />
                 <h1 className="engineering-hero-title hero-reveal hero-reveal--title mt-5 max-w-3xl font-display font-bold leading-[1.04] tracking-tight text-white">Encuentra el proyecto de grado que te llevará más lejos</h1>
                 <p className="hero-reveal hero-reveal--description mt-7 max-w-2xl text-lg leading-8 text-white/90 sm:text-xl sm:leading-9">Explora las alternativas para desarrollar tu proyecto de grado, encuentra oportunidades que se ajusten a tus intereses y descubre el camino para culminar tu formación profesional.</p>
@@ -101,16 +118,26 @@ export function ProjectsCatalog() {
                 </div>
               </div>
             </div>
+            <HeroTechOverlay />
             <img src={campusPhoto} alt="Sede de UCompensar al anochecer, con su edificio y entorno urbano" className="block h-auto w-full" />
-            <aside aria-labelledby="catalog-login-title" className="relative z-20 mx-5 mb-6 rounded-2xl border border-white/20 bg-[#073B57]/95 p-5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.24)] backdrop-blur-md sm:mx-8 sm:p-6 lg:absolute lg:right-6 lg:top-6 lg:mx-0 lg:mb-0 lg:w-[min(27%,24rem)] lg:p-5 xl:right-8 xl:top-8">
+            <div className="relative z-20 mx-5 mb-6 flex flex-col gap-3 sm:mx-8 lg:absolute lg:right-6 lg:top-6 lg:mx-0 lg:mb-0 lg:w-[min(27%,24rem)] xl:right-8 xl:top-8">
+              <aside aria-labelledby="catalog-login-title" className="rounded-2xl border border-white/20 bg-[#073B57]/95 p-5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.24)] backdrop-blur-md sm:p-6 lg:p-5">
               <h2 id="catalog-login-title" className="text-lg font-bold leading-snug text-white sm:text-xl">¿Ya te postulaste a una oferta de proyecto de grado?</h2>
               <p className="mt-2 text-sm leading-relaxed text-white/85">Consulta el estado de tu postulación, conoce los avances y realiza seguimiento a tu proceso académico desde el Portal de Trabajos de Grado.</p>
               <Button type="button" size="md" className="mt-4 min-h-11 w-full gap-2 bg-[#FF6B35] px-5 text-sm font-bold text-white hover:bg-[#F4511E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" onClick={() => navigate('/login')}><LogIn size={17} aria-hidden="true" />Ingresar al portal</Button>
             </aside>
+              <aside aria-labelledby="catalog-idea-title" className="rounded-2xl border border-white/20 bg-[#052B41]/90 p-5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.24)] backdrop-blur-md sm:p-6 lg:p-5">
+                <h2 id="catalog-idea-title" className="flex items-start gap-2 text-lg font-bold leading-snug text-white sm:text-xl"><Lightbulb size={20} className="mt-0.5 flex-shrink-0 text-[#FF8A50]" aria-hidden="true" />¿Tienes una idea para tu proyecto de grado?</h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/85">¿Tú y tus compañeros tienen una propuesta? Compártela con nosotros para que Coordinación la evalúe y te oriente sobre cómo desarrollarla.</p>
+                <Button type="button" size="md" className="mt-4 min-h-11 w-full gap-2 bg-[#FF6B35] px-5 text-sm font-bold text-white hover:bg-[#F4511E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" onClick={goToIdeaForm}><Lightbulb size={17} aria-hidden="true" />Presentar mi idea</Button>
+              </aside>
+            </div>
           </div>
         </section>
 
         <ModalityCards />
+
+        <IdeaProposalSection />
 
         <section className="px-5 py-10 sm:px-8 sm:py-12">
           <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-3xl border border-[#145B78]/30 bg-[radial-gradient(ellipse_at_88%_18%,rgba(255,107,53,0.24),transparent_34%),linear-gradient(110deg,#073B57_0%,#0B4865_58%,#124D64_100%)] px-6 py-8 shadow-[0_18px_42px_rgba(7,59,87,0.16)] sm:px-9 sm:py-9 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:px-12 2xl:max-w-screen-2xl">

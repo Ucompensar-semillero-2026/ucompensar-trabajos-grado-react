@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button } from '@/components/ui'
+import { FileText } from 'lucide-react'
+import { Card, Button, EmptyState } from '@/components/ui'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Select } from '@/components/ui/Input'
 import { useAppStore } from '@/stores/app.store'
@@ -41,7 +42,7 @@ export function TramitesSection() {
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-5 border-b border-[var(--color-border)] bg-[var(--color-bg)]/30 flex items-center justify-between">
           <div>
-            <h2 className="text-[16px] font-bold text-[var(--color-text)] tracking-tight">Todos los trámites</h2>
+            <h2 className="text-[18px] font-bold text-[var(--color-text)] tracking-tight">Todos los trámites</h2>
             <p className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
               {isLoading ? (
                 'Cargando…'
@@ -77,9 +78,15 @@ export function TramitesSection() {
           {isLoading ? (
             <p className="px-6 py-8 text-[12.5px] text-[var(--color-text-dim)]">Cargando trámites…</p>
           ) : filtered.length === 0 ? (
-            <p className="px-6 py-8 text-[12.5px] text-[var(--color-text-dim)]">
-              No hay trámites que coincidan con este filtro.
-            </p>
+            <EmptyState
+              icon={FileText}
+              title={processes.length === 0 ? 'Aún no tienes trámites' : 'Sin resultados'}
+              description={
+                processes.length === 0
+                  ? 'Cuando te postules a una oferta o inicies un trámite, aparecerá aquí con su estado y su trazabilidad.'
+                  : 'No hay trámites que coincidan con este filtro. Prueba con otra modalidad.'
+              }
+            />
           ) : (
             <table className="w-full border-collapse">
               <thead>

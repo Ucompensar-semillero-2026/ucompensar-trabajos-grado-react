@@ -1,7 +1,8 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CheckCircle2, X } from 'lucide-react'
+import { lockScroll, resetScrollToTop } from '@/utils/scrollLock'
 import { Badge, Button } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
 import { SSOForm } from '@/components/auth/SSOForm'
@@ -9,6 +10,7 @@ import { useAuthFlow } from '@/components/auth/AuthFlowContext'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
 import { ApiError } from '@/services/http'
+import type { PublicFlash } from '@/services/sessionFlash'
 import { ApplicationError, applicationsService } from '@/services/applications.service'
 import type { ApplicationResult } from '@/services/applications.service'
 import type { ProjectModality, ProjectOffer } from './projectCatalog.data'
@@ -16,7 +18,7 @@ import type { ModalityGuidance } from './modalityGuidance.data'
 import { OpportunityDetails } from './OpportunityDetails'
 import { applicationReturnPath } from './applicationReturn'
 
-type DialogStage = 'details' | 'login' | 'confirmation'
+type DialogStage = 'details' | 'confirm' | 'login' | 'confirmation'
 
 // Marca que la sesión se abrió en Microsoft SOLO para postularse a esta
 // oferta: al volver del redirect, la postulación la cierra aunque falle.
@@ -29,6 +31,14 @@ function takeApplyLoginMarker(offerId: string): boolean {
     return marked
   } catch {
     return false
+  }
+}
+
+function clearApplyLoginMarker() {
+  try {
+    sessionStorage.removeItem(APPLY_LOGIN_KEY)
+  } catch {
+    // sin sessionStorage no hay marca que limpiar
   }
 }
 
@@ -66,17 +76,21 @@ export function OpportunityDetailDialog({
   const [applicant, setApplicant] = useState<User | null>(null)
   const [applicationResult, setApplicationResult] = useState<ApplicationResult | null>(null)
   const [applicationError, setApplicationError] = useState<string | null>(null)
-  const [sessionState, setSessionState] = useState<'closing' | 'closed' | 'error'>('closing')
+  const [sessionState, setSessionState] = useState<'closing' | 'closed' | 'error'>('closing') // solo 'error' se muestra
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submissionInFlight = useRef(false)
   const autoApplied = useRef(false)
 
   // Tras registrar la postulación, la sesión se invalida en el servidor para que el portal vuelva a pedir credenciales.
+  // La confirmación (datos mínimos, sin tokens) viaja con el cierre: si el logout de Microsoft recarga la app, el
+  // catálogo la muestra una sola vez al volver.
+  const confirmationRef = useRef<PublicFlash | null>(null)
   const closeSession = useCallback(async () => {
     setSessionState('closing')
     setSessionError(null)
-    const error = await endSession()
+    const flash = confirmationRef.current
+    const error = await endSession(flash ? { reason: 'postulation_success', returnTo: '/proyectos-de-grado', flash } : undefined)
     setSessionError(error)
     setSessionState(error ? 'error' : 'closed')
   }, [endSession])
@@ -95,6 +109,11 @@ export function OpportunityDetailDialog({
       setApplicant(student)
       setApplicationResult(result)
       setStage('confirmation')
+      // Solo tras la confirmación real del backend se prepara el cierre de sesión y la confirmación posterior.
+      confirmationRef.current = {
+        kind: 'application', offerTitle: offer.title, modality: modality.name, code: result.process.process_code,
+        state: result.process.state.name, registeredAt: result.process.created_at,
+      }
       void closeSession()
     } catch (error) {
       setApplicationError(applicationErrorMessage(error))
@@ -104,16 +123,42 @@ export function OpportunityDetailDialog({
       submissionInFlight.current = false
       setIsSubmitting(false)
     }
-  }, [offer, closeSession, endSession])
+  }, [offer, modality.name, closeSession, endSession])
 
-  // Con sesión activa se postula de inmediato; sin sesión se pide acceso dentro del diálogo.
-  const handlePostulate = useCallback(() => {
+  // Sin sesión: se pide acceso con Microsoft y NO se registra nada. Con sesión: se pide una
+  // confirmación explícita. Solo al volver de Microsoft (`fromReturn` + marca de esta oferta)
+  // el registro continúa solo, porque el estudiante ya pidió postularse antes de salir.
+  const handlePostulate = useCallback((fromReturn = false) => {
     setApplicationError(null)
     const session = useAppStore.getState()
-    if (session.currentUser && session.accessToken) {
-      void submitApplication(session.currentUser, takeApplyLoginMarker(offer.id))
-    } else setStage('login')
+    if (!(session.currentUser && session.accessToken)) {
+      setStage('login')
+      return
+    }
+    const returnedFromLogin = fromReturn && takeApplyLoginMarker(offer.id)
+    if (returnedFromLogin) {
+      void submitApplication(session.currentUser, true)
+      return
+    }
+    clearApplyLoginMarker()
+    setStage('confirm')
   }, [offer.id, submitApplication])
+
+  const handleConfirmApplication = () => {
+    const session = useAppStore.getState()
+    if (!session.currentUser || !session.accessToken) {
+      setStage('login')
+      return
+    }
+    void submitApplication(session.currentUser, false)
+  }
+
+  const handleReturnToCatalog = () => {
+    clearApplyLoginMarker()
+    onClose()
+    navigate('/proyectos-de-grado')
+    resetScrollToTop()
+  }
 
   const handleMicrosoftLogin = () => {
     try {
@@ -132,22 +177,22 @@ export function OpportunityDetailDialog({
   useEffect(() => {
     if (!autoApply || autoApplied.current) return
     autoApplied.current = true
-    handlePostulate()
+    handlePostulate(true)
   }, [autoApply, handlePostulate])
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const page = document.querySelector<HTMLElement>('.projects-catalog')
-    const previousOverflow = document.body.style.overflow
+    const unlockScroll = lockScroll()
 
     page?.setAttribute('inert', '')
-    document.body.style.overflow = 'hidden'
-    closeButtonRef.current?.focus()
+    closeButtonRef.current?.focus({ preventScroll: true })
 
     return () => {
       page?.removeAttribute('inert')
-      document.body.style.overflow = previousOverflow
-      previousFocus?.focus()
+      unlockScroll()
+      // preventScroll: devolver el foco no debe desplazar la página
+      previousFocus?.focus({ preventScroll: true })
     }
   }, [])
 
@@ -155,7 +200,7 @@ export function OpportunityDetailDialog({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        if (stage === 'login') returnFromLogin()
+        if (stage === 'login' || stage === 'confirm') returnFromLogin()
         else onClose()
         return
       }
@@ -184,11 +229,11 @@ export function OpportunityDetailDialog({
   }, [onClose, returnFromLogin, stage])
 
   useEffect(() => {
-    if (stage !== 'details') closeButtonRef.current?.focus()
+    if (stage !== 'details') closeButtonRef.current?.focus({ preventScroll: true })
   }, [stage])
 
-  const closeOrReturn = stage === 'login' ? returnFromLogin : onClose
-  const title = stage === 'details' ? offer.title : stage === 'confirmation' ? `¡Te postulaste a ${offer.title}!` : 'Inicia sesión para postularte'
+  const closeOrReturn = stage === 'login' || stage === 'confirm' ? returnFromLogin : onClose
+  const title = stage === 'details' ? offer.title : stage === 'confirmation' ? 'Postulación registrada' : stage === 'confirm' ? 'Confirma tu postulación' : 'Inicia sesión para postularte'
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#061F2D]/70 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) closeOrReturn() }}>
@@ -200,13 +245,23 @@ export function OpportunityDetailDialog({
               <div className="flex flex-wrap items-center gap-2"><Badge variant="orange">{offer.status}</Badge><span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white">{modality.name}</span></div>
               <p className="mt-4 text-xs font-semibold text-white/75">{offer.area}</p>
               <h2 id="opportunity-dialog-title" className="mt-1 text-xl font-bold leading-tight sm:text-2xl">{title}</h2>
-            </> : <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5"><Logo size="sm" /></span><div><p className="text-xs font-semibold text-white/75">{stage === 'confirmation' ? 'UCompensar · Proyectos de grado' : 'Acceso institucional'}</p><h2 id="opportunity-dialog-title" className="mt-1 text-xl font-bold">{title}</h2></div></div>}
+            </> : <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5"><Logo size="sm" /></span><div><p className="text-xs font-semibold text-white/75">{stage === 'confirmation' || stage === 'confirm' ? 'UCompensar · Proyectos de grado' : 'Acceso institucional'}</p><h2 id="opportunity-dialog-title" className="mt-1 text-xl font-bold">{title}</h2></div></div>}
           </div>
-          <button ref={closeButtonRef} type="button" aria-label={stage === 'login' ? 'Cancelar y cerrar el acceso' : 'Cerrar detalle de oportunidad'} onClick={closeOrReturn} className="relative z-10 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><X size={20} aria-hidden="true" /></button>
+          <button ref={closeButtonRef} type="button" aria-label={stage === 'login' || stage === 'confirm' ? 'Cancelar la postulación' : 'Cerrar detalle de oportunidad'} onClick={closeOrReturn} className="relative z-10 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><X size={20} aria-hidden="true" /></button>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {stage === 'details' && <OpportunityDetails offer={offer} modality={modality} guidance={guidance} />}
+
+          {stage === 'confirm' && <section className="mx-auto max-w-lg p-6 sm:p-9" aria-labelledby="application-confirm-title">
+            <h3 id="application-confirm-title" className="text-center text-2xl font-bold text-[#073B57]">¿Confirmas tu postulación?</h3>
+            <p className="mt-3 text-center text-sm leading-relaxed text-[#526575]">Vas a postularte a la oferta <strong className="text-[#073B57]">«{offer.title}»</strong> ({modality.name}). La postulación se registrará con tu cuenta institucional.</p>
+            {applicationError && <p role="alert" className="mt-4 text-center text-sm font-medium text-red-700">{applicationError}</p>}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button type="button" variant="outline" className="min-h-11 border-[#073B57]/25 text-[#073B57]" disabled={isSubmitting} onClick={returnFromLogin}>Cancelar</Button>
+              <Button type="button" className="min-h-11 bg-[#FF6B35] px-5 text-white hover:bg-[#F4511E]" disabled={isSubmitting} onClick={handleConfirmApplication}>{isSubmitting ? 'Registrando…' : 'Confirmar postulación'}</Button>
+            </div>
+          </section>}
 
           {stage === 'login' && <section className="mx-auto max-w-md p-6 sm:p-9" aria-labelledby="application-login-title">
             <div className="mb-6 flex justify-center"><Logo size="md" /></div>
@@ -218,8 +273,8 @@ export function OpportunityDetailDialog({
 
           {stage === 'confirmation' && applicationResult && applicant && <section className="mx-auto max-w-2xl p-6 sm:p-9" aria-labelledby="application-success-title">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EAF7F1] text-[#15804B]"><CheckCircle2 size={38} aria-hidden="true" /></div>
-            <h3 id="application-success-title" className="mt-5 text-center text-2xl font-extrabold text-[#073B57] sm:text-3xl">¡Te postulaste a {offer.title}!</h3>
-            <p className="mt-3 text-center text-sm leading-relaxed text-[#526575]">Hola, <strong className="text-[#073B57]">{applicant.name}</strong>. Tu postulación quedó registrada en el sistema y la verás en «Mis trámites» cuando inicies sesión.</p>
+            <h3 id="application-success-title" className="mt-5 text-center text-2xl font-extrabold text-[#073B57] sm:text-3xl">¡Te has postulado correctamente!</h3>
+            <p className="mt-3 text-center text-sm leading-relaxed text-[#526575]">Hola, <strong className="text-[#073B57]">{applicant.name}</strong>. Tu postulación a «{offer.title}» se registró correctamente en el sistema y la verás en «Mis trámites» cuando inicies sesión.</p>
             <dl className="mt-7 grid gap-3 rounded-2xl border border-[#DCE5E9] bg-gradient-to-br from-[#F4F8FA] to-[#FFF7F1] p-5 sm:grid-cols-2 sm:p-6">
               <div className="sm:col-span-2"><dt className="text-xs font-semibold text-[#60727F]">Oferta</dt><dd className="mt-1 font-bold text-[#073B57]">{offer.title}</dd></div>
               <div><dt className="text-xs font-semibold text-[#60727F]">Estudiante</dt><dd className="mt-1 text-sm font-semibold text-[#073B57]">{applicant.name}</dd></div>
@@ -230,8 +285,6 @@ export function OpportunityDetailDialog({
               <div><dt className="text-xs font-semibold text-[#60727F]">Fecha de registro</dt><dd className="mt-1 text-sm text-[#073B57]">{registeredAtLabel(applicationResult.process.created_at)}</dd></div>
             </dl>
             <div role="status" aria-live="polite" className="mt-5 text-center text-xs leading-5 text-[#526575]">
-              {sessionState === 'closing' && 'Cerrando tu sesión…'}
-              {sessionState === 'closed' && 'Tu sesión se cerró. Para entrar al portal deberás iniciar sesión de nuevo.'}
               {sessionState === 'error' && <span role="alert" className="text-red-700">No se pudo cerrar tu sesión: {sessionError}. Tu sesión sigue activa.{' '}<button type="button" onClick={() => void closeSession()} className="font-semibold underline">Reintentar cierre de sesión</button></span>}
             </div>
           </section>}
@@ -240,13 +293,13 @@ export function OpportunityDetailDialog({
         {stage === 'details' && <footer className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8">
           {applicationError && <p role="alert" className="mr-auto text-sm font-medium text-red-700">{applicationError}</p>}
           <Button type="button" variant="outline" className="min-h-11 border-[#073B57]/25 text-[#073B57]" onClick={onClose}>Cerrar</Button>
-          {offer.status === 'Disponible' && (applicationsService.isAtCapacity(offer) ? <Button type="button" disabled className="min-h-11 bg-[#D8DEE2] text-[#526575]">Cupos completos</Button> : <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#F4511E]" onClick={handlePostulate}>Postularme <ArrowRight size={16} aria-hidden="true" /></Button>)}
+          {offer.status === 'Disponible' && (applicationsService.isAtCapacity(offer) ? <Button type="button" disabled className="min-h-11 bg-[#D8DEE2] text-[#526575]">Cupos completos</Button> : <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#F4511E]" onClick={() => handlePostulate()}>Postularme <ArrowRight size={16} aria-hidden="true" /></Button>)}
         </footer>}
 
         {stage === 'login' && <footer className="flex shrink-0 justify-end border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8"><Button type="button" variant="outline" className="min-h-11 border-[#073B57]/25 text-[#073B57]" disabled={isSubmitting} onClick={returnFromLogin}>{autoApply ? 'Cancelar' : 'Volver a la oportunidad'}</Button></footer>}
 
         {stage === 'confirmation' && applicationResult && <footer className="flex shrink-0 justify-end border-t border-[#E5E9EC] bg-white px-5 py-4 sm:px-8">
-          <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={() => { onClose(); navigate('/proyectos-de-grado') }}>Volver al catálogo <ArrowRight size={16} aria-hidden="true" /></Button>
+          <Button type="button" className="min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={handleReturnToCatalog}>Volver al catálogo <ArrowRight size={16} aria-hidden="true" /></Button>
         </footer>}
       </div>
     </div>,

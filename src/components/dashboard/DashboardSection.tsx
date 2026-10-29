@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MetricCard } from '@/components/ui/MetricCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/Badge'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import { processesApi, type ProcessOut } from '@/services/processes.service'
 import { formatRelativeDate, daysSince } from '@/utils/format'
-import { AlertCircle, FileCheck2, BadgeCheck, History, Layers } from 'lucide-react'
+import { AlertCircle, FileCheck2, BadgeCheck, History, Layers, FileText } from 'lucide-react'
 
 const INACTIVITY_THRESHOLD_DAYS = 15
 const MODALITY_COLORS = ['#FF6600', '#243455', '#00adba', '#f7a400', '#f7d8a4', '#a1a1aa']
@@ -124,9 +125,7 @@ export function DashboardSection() {
             {isLoading ? (
               <p className="px-6 py-8 text-[12.5px] text-[var(--color-text-dim)]">Cargando trámites…</p>
             ) : recientes.length === 0 ? (
-              <p className="px-6 py-8 text-[12.5px] text-[var(--color-text-dim)]">
-                No hay trámites registrados todavía.
-              </p>
+              <EmptyState icon={FileText} title="Aún no hay trámites" description="Cuando se registren trámites, verás aquí los más recientes." />
             ) : (
               <table className="w-full border-collapse" style={{ minWidth: 500 }}>
                 <thead>

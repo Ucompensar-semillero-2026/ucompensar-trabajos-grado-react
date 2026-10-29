@@ -1,10 +1,12 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LogOut, ChevronRight, X } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
-import { canSeeInMenu, isStudentRole } from '@/config/access'
+import { SidebarBackdrop } from './SidebarBackdrop'
+import { canSeeInMenu, isStudentRole, isTutorWorkspaceUser } from '@/config/access'
 import { INSTITUTIONAL_ROLE_LABELS } from '@/config/roles'
-import { NAV_ITEMS, STUDENT_NAV_GROUPS } from '@/constants'
+import { NAV_ITEMS, STUDENT_NAV_GROUPS, TUTOR_NAV_GROUPS } from '@/constants'
+import type { StudentNavItem } from '@/constants'
 import { useThemeStore } from '@/stores/theme.store'
 import { cn } from '@/utils/cn'
 import type { User } from '@/types'
@@ -29,7 +31,7 @@ const NavItem = memo(function NavItem({ item, active, collapsed, onNavigate }: N
     collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2 justify-start',
     active
       ? 'bg-[var(--color-primary)] text-white font-semibold shadow-lg'
-      : 'text-white/70 hover:text-white hover:bg-white/10'
+      : 'text-white/85 hover:text-white hover:bg-[#0876B9]/25'
   )
   const content = (
     <>
@@ -73,16 +75,26 @@ interface SidebarProps {
   onLogout: () => void
 }
 
-// Mismo lenguaje visual que las tarjetas de modalidades del catálogo: azul ingeniería → petróleo,
-// con teal sutil a la izquierda y un resplandor naranja difuminado abajo a la derecha.
+// Degradado vertical azul marino → azul petróleo; el panal y la fotografía van encima (SidebarBackdrop).
 const SIDEBAR_GRADIENT = [
   'border-r border-white/10',
   'bg-[#052B41]',
-  "bg-[image:radial-gradient(ellipse_130%_52%_at_100%_100%,rgba(239,103,35,0.42)_0%,rgba(239,103,35,0.2)_38%,rgba(239,103,35,0)_72%),radial-gradient(ellipse_150%_48%_at_0%_40%,rgba(6,176,185,0.16)_0%,rgba(6,176,185,0)_68%),linear-gradient(180deg,#052B41_0%,#073B57_100%)]",
+  "bg-[image:radial-gradient(ellipse_120%_40%_at_0%_0%,rgba(8,118,185,0.28)_0%,rgba(8,118,185,0)_70%),linear-gradient(180deg,#041F31_0%,#052B41_45%,#073B57_100%)]",
 ].join(' ')
 
+const NARROW_QUERY = '(max-width: 767px)'
+const canMatchMedia = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+
 export function Sidebar({ user, onLogout }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false)
+  // En pantallas estrechas el menú arranca contraído (solo iconos) y sigue el tamaño de la ventana.
+  const [collapsed, setCollapsed] = useState(() => canMatchMedia() && window.matchMedia(NARROW_QUERY).matches)
+  useEffect(() => {
+    if (!canMatchMedia()) return
+    const query = window.matchMedia(NARROW_QUERY)
+    const onChange = (event: MediaQueryListEvent) => setCollapsed(event.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
   const navigate = useNavigate()
   const location = useLocation()
   const { theme } = useThemeStore()
@@ -90,14 +102,16 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
   const handleToggle = () => setCollapsed((prev) => !prev)
 
   // El menú se elige de forma explícita por rol: estudiantes ven su lista propia; el resto, NAV_ITEMS.
-  const navGroups = isStudentRole(user.role)
-    ? STUDENT_NAV_GROUPS.map(group => ({
+  const roleMenu = isStudentRole(user.role) ? STUDENT_NAV_GROUPS : isTutorWorkspaceUser(user) ? TUTOR_NAV_GROUPS : null
+  const isItemActive = (item: StudentNavItem) =>
+    !item.href &&
+    (item.exact
+      ? location.pathname === item.path
+      : (item.activePaths ?? (item.path ? [item.path] : [])).some(p => isPathActive(location.pathname, p)))
+  const navGroups = roleMenu
+    ? roleMenu.map(group => ({
         label: group.label,
-        entries: group.items.map(item => ({
-          key: item.key,
-          item,
-          active: !item.href && (item.activePaths ?? (item.path ? [item.path] : [])).some(p => isPathActive(location.pathname, p)),
-        })),
+        entries: group.items.map(item => ({ key: item.key, item, active: isItemActive(item) })),
       }))
     : ['Principal', 'Gestión'].map(group => ({
         label: group,
@@ -110,11 +124,14 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex flex-col flex-shrink-0 h-full transition-all duration-300 overflow-hidden z-40',
+        'relative flex flex-col flex-shrink-0 h-full transition-all duration-300 overflow-hidden z-40',
         theme === 'dark' ? 'bg-[var(--color-surface)] border-r border-white/5' : SIDEBAR_GRADIENT
       )}
       style={{ width: collapsed ? 64 : 264 }}
     >
+      {/* Panal tecnológico + fotografía del edificio (decorativo, bajo el contenido) */}
+      {theme !== 'dark' && <SidebarBackdrop showPhoto={!collapsed} />}
+
       {/* ── Logo header ── */}
       <div
         className={cn(
@@ -147,15 +164,15 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
       </div>
 
       {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4 scrollbar-premium">
-        {navGroups.map(group => (
-          <div key={group.label}>
+      <nav className="relative z-10 flex-1 overflow-y-auto py-4 px-3 space-y-4 scrollbar-premium" aria-label="Navegación principal">
+        {navGroups.map((group, index) => (
+          <div key={group.label} className={cn(index > 0 && !collapsed && 'border-t border-white/10 pt-4')}>
             {!collapsed && (
-              <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white/50">
+              <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#7FC4EC]">
                 {group.label}
               </p>
             )}
-            {collapsed && <div className="h-px bg-white/5 mx-2 mb-2" />}
+            {collapsed && index > 0 && <div className="h-px bg-white/10 mx-2 mb-2" />}
             <div className="space-y-1">
               {group.entries.map(({ key, item, active }) => (
                 <NavItem
@@ -172,17 +189,18 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
       </nav>
 
       {/* ── User footer ── */}
-      <div className="p-3 mt-auto border-t border-white/10">
+      <div className="relative z-10 p-3 mt-auto border-t border-white/10 bg-[#041E2F]/80">
         <div className={cn(
           'flex items-center gap-3 p-2 rounded-xl transition-all',
           !collapsed && 'hover:bg-white/5'
         )}>
-          <img 
-            src="https://api.dicebear.com/7.x/notionists/svg?seed=UCompensar&backgroundColor=f7d8a4" 
-            alt="Avatar" 
-            className="w-9 h-9 rounded-full border-2 border-white/10 shadow-md object-cover transition-transform hover:scale-105"
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[12px] font-bold text-white"
             title={collapsed ? user.name : undefined}
-          />
+          >
+            {user.initials}
+          </span>
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0 animate-in">
@@ -194,8 +212,9 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
                   onLogout()
                   navigate('/login')
                 }}
-                className="flex items-center justify-center p-2 rounded-lg transition-all text-white/40 hover:text-white hover:bg-white/10 border-none cursor-pointer"
+                className="flex items-center justify-center p-2 rounded-lg transition-all text-white/60 hover:text-white hover:bg-white/10 border-none cursor-pointer"
                 title="Cerrar sesión"
+                aria-label="Cerrar sesión"
               >
                 <LogOut size={16} />
               </button>

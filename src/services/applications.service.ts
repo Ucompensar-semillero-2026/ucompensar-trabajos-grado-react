@@ -82,6 +82,8 @@ export const applicationsService = {
       modality_public_id: modality.public_id,
       academic_semester: currentAcademicSemester(),
       observations: buildApplicationObservations(offer),
+      // El backend (fase A) guarda el nombre del proyecto en processes.title.
+      title: offer.title.slice(0, 200),
     })
     return { process }
   },

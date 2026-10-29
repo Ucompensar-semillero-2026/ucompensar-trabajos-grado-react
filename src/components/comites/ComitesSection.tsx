@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Button, Badge } from '@/components/ui'
+import { Card, Button, Badge , EmptyState} from '@/components/ui'
 import { Select } from '@/components/ui/Input'
 import { Gavel, Users, Vote, Lock } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -151,12 +151,12 @@ export function ComitesSection() {
       <Card className="p-0 overflow-hidden h-fit">
         <div className="px-4 py-3.5 border-b border-[var(--color-border)] flex items-center gap-2">
           <Gavel size={16} className="text-[var(--color-primary)]" />
-          <h2 className="text-[13px] font-bold text-[var(--color-text)]">Comités</h2>
+          <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Comités</h2>
         </div>
         {isLoading ? (
           <p className="px-4 py-6 text-[12px] text-[var(--color-text-dim)]">Cargando…</p>
         ) : committees.length === 0 ? (
-          <p className="px-4 py-6 text-[12px] text-[var(--color-text-dim)]">No hay comités registrados.</p>
+          <EmptyState icon={Gavel} title="Aún no hay comités" description="Cuando se registre un comité, aparecerá aquí con sus sesiones." />
         ) : (
           <div className="p-2 flex flex-col gap-1">
             {committees.map((c) => (
@@ -284,7 +284,7 @@ export function ComitesSection() {
                 <Card>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="text-[13px] font-bold text-[var(--color-text)]">Sesión {activeSession.minutes_number}</h3>
+                      <h3 className="text-[16px] font-bold text-[var(--color-text)]">Sesión {activeSession.minutes_number}</h3>
                       <p className="text-[11.5px] text-[var(--color-text-dim)]">
                         {activeSession.session_date} · Presidente: {activeSession.president.full_name} · Secretario: {activeSession.secretary.full_name}
                       </p>

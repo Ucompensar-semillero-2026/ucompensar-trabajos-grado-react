@@ -11,6 +11,9 @@ import {
   loginRequest,
   msalInstance,
 } from '@/config/msal'
+import type { EndSessionOptions } from '@/components/auth/AuthFlowContext'
+import { SESSION_CLOSED_PATH } from '@/config/sessionPolicy'
+import { setFlash, type PublicFlash } from '@/services/sessionFlash'
 import {
   NO_ACCESS_PATH,
   homePathFor,
@@ -71,6 +74,11 @@ const SESSION_FLAG_KEY = 'ucomp_has_session'
 // El resultado del redirect se consume una sola vez. Sin esto, el doble
 // montaje de StrictMode en desarrollo mandaría el id_token dos veces.
 let microsoftRedirectConsumed = false
+
+// Un único cierre de sesión a la vez: evita llamadas duplicadas a /auth/logout
+// (p. ej. salida del portal + clic manual, o doble montaje de StrictMode).
+let logoutInFlight: Promise<string | null> | null = null
+
 
 export function useAuth() {
   const { loginSuccess, logout: storeLogout } = useAppStore()
@@ -184,33 +192,73 @@ export function useAuth() {
     }
   }, [])
 
-  // Cierra la sesión sin navegar a /login (la usa el flujo de postulación). Solo
-  // limpia el estado local si el servidor confirmó la invalidación del refresh_token.
-  const endSession = useCallback(async (): Promise<string | null> => {
-    try {
-      await authApi.logout()
-    } catch (err) {
-      return err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor'
-    }
-    localStorage.removeItem(SESSION_FLAG_KEY)
-    storeLogout()
-    clearMicrosoftSession().catch(() => {})
-    return null
-  }, [storeLogout])
+  /**
+   * Cierre de sesión LOCAL centralizado (manual, por salida del portal y tras operaciones públicas):
+   *  1. invalida la sesión propia en el backend (refresh_token);
+   *  2. limpia el estado de la app, la marca local de sesión y la caché/cuenta activa de MSAL (`clearMicrosoftSession`);
+   *  3. continúa a `returnTo` (o a la confirmación propia en el cierre manual) SIN pasar por login.microsoftonline.com.
+   *
+   * IMPORTANTE: esto NO cierra la sesión global de Microsoft del navegador (cookies de login.microsoftonline.com).
+   * Hacerlo exige `logoutRedirect`/`logoutPopup`, que muestran las pantallas de Microsoft «Cerró la sesión de su cuenta…»
+   * y interrumpen el flujo; por eso no se usa. La garantía de seguridad es que el siguiente login pide credenciales
+   * (`prompt: 'login'`) y que la sesión de UCompensar queda invalidada en el backend y en el navegador.
+   *
+   * `strict`: solo limpia lo local si el servidor confirmó la invalidación (si no, devuelve el error y la sesión
+   * sigue activa). Sin `strict` la sesión local se cierra siempre, aunque el aviso al backend falle.
+   */
+  const closeSession = useCallback(
+    (options: EndSessionOptions & { strict?: boolean } = {}): Promise<string | null> => {
+      if (logoutInFlight) return logoutInFlight
+      const { strict = false, reason, returnTo } = options
+      // Solo el cierre manual lleva a la pantalla de confirmación; los automáticos nunca muestran avisos de logout.
+      const manual = reason === 'manual'
+      const flash: PublicFlash | undefined = manual ? { kind: 'manual_logout' } : options.flash
+      const destination = manual ? SESSION_CLOSED_PATH : returnTo ? safeReturnPath(returnTo) : null
+
+      const run = async (): Promise<string | null> => {
+        if (strict) {
+          try {
+            await authApi.logout()
+          } catch (err) {
+            return err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor'
+          }
+        } else {
+          authApi.logout().catch(() => {
+            // Aunque falle el aviso al backend, la sesión local queda cerrada -- no bloquear al usuario.
+          })
+        }
+
+        localStorage.removeItem(SESSION_FLAG_KEY)
+        storeLogout()
+        clearMicrosoftSession().catch(() => {})
+        if (destination) {
+          if (flash) setFlash(flash)
+          navigateRef.current(destination, { replace: true })
+        }
+        return null
+      }
+
+      logoutInFlight = run().finally(() => {
+        logoutInFlight = null
+      })
+      return logoutInFlight
+    },
+    [storeLogout]
+  )
+
+  // Tras una operación pública el cierre es estricto: la sesión solo se da por cerrada si el servidor lo confirma.
+  const endSession = useCallback((options?: EndSessionOptions) => closeSession({ ...options, strict: true }), [closeSession])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(SESSION_FLAG_KEY)
-    storeLogout()
-    navigate('/login')
-    clearMicrosoftSession().catch(() => {})
-    authApi.logout().catch(() => {
-      // Aunque falle el aviso al backend, la sesión local ya quedó
-      // cerrada -- no bloquear al usuario por esto.
-    })
-  }, [storeLogout, navigate])
+    void closeSession({ reason: 'manual' })
+  }, [closeSession])
+
+  /** Salida del área autenticada hacia una página pública. */
+  const leavePortal = useCallback((publicPath: string) => closeSession({ reason: 'leave_authenticated_area', returnTo: publicPath }), [closeSession])
 
   return {
     logout,
+    leavePortal,
     endSession,
     loginWithMicrosoft,
     microsoftError,

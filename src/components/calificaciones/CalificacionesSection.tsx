@@ -119,7 +119,7 @@ export function CalificacionesSection() {
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <GraduationCap size={16} className="text-[var(--color-primary)]" />
-          <h2 className="text-[13px] font-bold text-[var(--color-text)]">Calificaciones</h2>
+          <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Calificaciones</h2>
         </div>
         <Select value={processId} onChange={(e) => selectProcess(e.target.value)} className="w-full">
           <option value="">Selecciona un trámite…</option>
