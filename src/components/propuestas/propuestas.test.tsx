@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
@@ -53,9 +53,41 @@ const summaryOf = (o: Partial<Record<ProposalStatus, number>> = {}) => ({
 })
 
 const endSessionMock = vi.fn<(options?: unknown) => Promise<string | null>>(async () => null)
-const authFlow = (loginWithMicrosoft = vi.fn(async () => {})) => ({ loginWithMicrosoft, endSession: endSessionMock, loginError: null })
-const renderIdea = (loginWithMicrosoft?: () => Promise<void>) =>
-  render(<MemoryRouter><AuthFlowContext.Provider value={authFlow(loginWithMicrosoft as never)}><IdeaProposalSection /></AuthFlowContext.Provider></MemoryRouter>)
+const authFlow = (loginWithMicrosoft = vi.fn(async () => {}), loginError: string | null = null) => ({ loginWithMicrosoft, endSession: endSessionMock, loginError })
+const renderIdea = (loginWithMicrosoft?: () => Promise<void>, loginError: string | null = null) =>
+  render(
+    <MemoryRouter>
+      <AuthFlowContext.Provider value={authFlow(loginWithMicrosoft as never, loginError)}>
+        <Routes>
+          <Route path="/" element={<IdeaProposalSection modality="proyecto_investigacion" />} />
+          <Route path="/proyectos-de-grado" element={<p>CATALOGO</p>} />
+        </Routes>
+      </AuthFlowContext.Provider>
+    </MemoryRouter>
+  )
+
+const PENDING_KEY = 'ucomp_idea_pending'
+const validDraft = { title: 'Detección de fallas', problem: 'Los equipos de la red fallan sin aviso', solution: 'Un modelo que anticipe fallas con sensores', confirm: true, policy: true }
+
+/** Estado al volver de Microsoft: borrador restaurado desde sessionStorage + marca de envío en curso. */
+function renderReturned(extra: Record<string, unknown> = {}, loginError: string | null = null) {
+  sessionStorage.setItem('ucomp_idea_draft', JSON.stringify({ ...validDraft, ...extra }))
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnPath: '/', at: Date.now() }))
+  return renderIdea(undefined, loginError)
+}
+
+/** Rellena y pulsa «Enviar propuesta», comprueba que se exige Microsoft y simula la vuelta (recarga completa) ya autenticado. */
+async function sendAndReturn(user: ReturnType<typeof userEvent.setup>, fill: () => Promise<void> = () => fillIdea(user)) {
+  const login = vi.fn(async () => {})
+  const first = renderIdea(login)
+  await fill()
+  await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+  expect(login).toHaveBeenCalledTimes(1)
+  expect(proposalsApi.create).not.toHaveBeenCalled()
+  first.unmount()
+  renderIdea(login)
+  return login
+}
 
 async function fillIdea(user: ReturnType<typeof userEvent.setup>, extra: { members?: string } = {}) {
   await user.type(screen.getByLabelText('Título de la propuesta'), 'Detección de fallas')
@@ -84,33 +116,51 @@ afterEach(() => {
 })
 
 describe('tarjeta del banner y formulario público', () => {
-  it('adds the idea card under the portal card and scrolls to #proponer-idea, keeping the portal card', async () => {
-    const user = userEvent.setup()
+  it('the catalog no longer shows the global proposal block or form, only the modalities and the portal card', () => {
     render(<MemoryRouter><AuthFlowContext.Provider value={authFlow()}><ProjectsCatalog /></AuthFlowContext.Provider></MemoryRouter>)
 
     expect(screen.getByRole('heading', { name: '¿Ya te postulaste a una oferta de proyecto de grado?' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ingresar al portal' })).toBeInTheDocument()
-    const ideaCard = screen.getByRole('heading', { name: '¿Tienes una idea para tu proyecto de grado?' }).closest('aside') as HTMLElement
-    expect(within(ideaCard).getByText(/¿Tú y tus compañeros tienen una propuesta\? Compártela con nosotros/)).toBeInTheDocument()
-    expect(document.getElementById('proponer-idea')).toBeInTheDocument()
-
-    await user.click(within(ideaCard).getByRole('button', { name: 'Presentar mi idea' }))
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' }) // respeta prefers-reduced-motion
-    expect(document.activeElement).toBe(document.getElementById('idea-title'))
+    expect(screen.queryByText('¿Tienes una idea para tu proyecto de grado?')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Presentar mi idea' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Propón tu proyecto de grado')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Título de la propuesta')).not.toBeInTheDocument()
+    expect(document.getElementById('proponer-idea')).toBeNull()
+    expect(document.getElementById('modalidades')).toBeInTheDocument()
   })
 
-  it('anonymous visitors can draft but must sign in with Microsoft: nothing is sent and the draft survives', async () => {
+  it('anonymous visitors can draft but must sign in with Microsoft: nothing is sent, the draft and the pending send survive without tokens', async () => {
     const user = userEvent.setup()
     const login = vi.fn(async () => {})
     renderIdea(login)
     await fillIdea(user)
 
-    await user.click(screen.getByRole('button', { name: 'Iniciar sesión con Microsoft para enviar' }))
+    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
 
-    expect(login).toHaveBeenCalledWith('/proyectos-de-grado#proponer-idea')
+    expect(login).toHaveBeenCalledWith('/proyectos-de-grado')
     expect(proposalsApi.create).not.toHaveBeenCalled()
     expect(JSON.parse(sessionStorage.getItem('ucomp_idea_draft') as string).title).toBe('Detección de fallas')
+    expect(JSON.parse(sessionStorage.getItem(PENDING_KEY) as string)).toMatchObject({ returnPath: '/proyectos-de-grado' })
+    expect(JSON.stringify({ ...sessionStorage })).not.toMatch(/token|password|contraseña/i)
     expect(screen.queryByLabelText(/contraseña/i)).not.toBeInTheDocument() // jamás se piden contraseñas aquí
+  })
+
+  it('always requires the Microsoft login, even when an app session already exists', async () => {
+    const user = userEvent.setup()
+    useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
+    const login = vi.fn(async () => {})
+    renderIdea(login)
+    await fillIdea(user)
+
+    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+
+    expect(login).toHaveBeenCalledTimes(1)
+    expect(proposalsApi.create).not.toHaveBeenCalled() // la sesión previa no basta para registrar
+  })
+
+  it('preloads the modality of the page the modal was opened from', () => {
+    renderIdea()
+    expect(screen.getByLabelText('Modalidad sugerida')).toHaveValue('proyecto_investigacion')
   })
 
   it('restores the draft after coming back from Microsoft and does NOT submit on its own', async () => {
@@ -159,18 +209,14 @@ describe('tarjeta del banner y formulario público', () => {
     expect(proposalsApi.create).not.toHaveBeenCalled()
   })
 
-  it('a complete form with the two confirmations and every optional field empty can be sent', async () => {
-    const user = userEvent.setup()
+  it('a complete form with the two confirmations and every optional field empty is sent once the student comes back authenticated', async () => {
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
     vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
-    renderIdea()
-    await fillIdea(user)
-
-    expect(screen.getByRole('button', { name: 'Enviar propuesta' })).toBeEnabled()
-    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    renderReturned()
 
     expect(await screen.findByText('Recibimos tu propuesta')).toBeInTheDocument()
-    expect(vi.mocked(proposalsApi.create).mock.calls[0][1]).toMatchObject({ member_emails: [], suggested_tutor_email: null, expected_impact: null })
+    expect(proposalsApi.create).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(proposalsApi.create).mock.calls[0][1]).toMatchObject({ member_emails: [], suggested_tutor_email: null, expected_impact: null, suggested_modality: 'proyecto_investigacion' })
   })
 
   it('an optional teacher email with a bad format shows its own error; empty optional fields never block', async () => {
@@ -190,16 +236,17 @@ describe('tarjeta del banner y formulario público', () => {
     const user = userEvent.setup()
     const login = vi.fn(async () => {})
     renderIdea(login)
-    const button = screen.getByRole('button', { name: 'Iniciar sesión con Microsoft para enviar' })
+    const button = screen.getByRole('button', { name: 'Enviar propuesta' })
     expect(button).toBeEnabled()
 
     await user.click(button) // incompleto: explica qué falta y no redirige
     expect(login).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
     expect(document.getElementById('idea-error-title')).toBeInTheDocument()
 
     await fillIdea(user)
     await user.click(button)
-    expect(login).toHaveBeenCalledWith('/proyectos-de-grado#proponer-idea')
+    expect(login).toHaveBeenCalledWith('/proyectos-de-grado')
     expect(proposalsApi.create).not.toHaveBeenCalled()
   })
 
@@ -275,46 +322,37 @@ describe('tarjeta del banner y formulario público', () => {
       const user = userEvent.setup()
       useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
       vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
-      renderIdea()
-      await fillIdea(user)
-      await user.click(screen.getByRole('button', { name: /Agregar integrante/ }))
-      await user.click(screen.getByRole('button', { name: /Agregar integrante/ }))
-      await user.type(emailInputs()[0], '  Amiga@U.co ')
-      await user.type(emailInputs()[2], 'otra@u.co')
-      await user.type(screen.getByLabelText(/Correo del docente propuesto/), 'Docente@u.co')
-
-      await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+      await sendAndReturn(user, async () => {
+        await fillIdea(user)
+        await user.click(screen.getByRole('button', { name: /Agregar integrante/ }))
+        await user.click(screen.getByRole('button', { name: /Agregar integrante/ }))
+        await user.type(emailInputs()[0], '  Amiga@U.co ')
+        await user.type(emailInputs()[2], 'otra@u.co')
+        await user.type(screen.getByLabelText(/Correo del docente propuesto/), 'Docente@u.co')
+      })
 
       await screen.findByText('Recibimos tu propuesta')
       expect(vi.mocked(proposalsApi.create).mock.calls[0][1]).toMatchObject({ member_emails: ['amiga@u.co', 'otra@u.co'], suggested_tutor_email: 'docente@u.co' })
     })
   })
 
-  it('shows success only after the backend confirms, sends the form once and clears the draft', async () => {
+  it('restores the whole draft after Microsoft and shows success only after the backend confirms, once, clearing draft and pending mark', async () => {
     const user = userEvent.setup()
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
     vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
-    renderIdea()
-    await fillIdea(user, { members: 'amiga@ucompensar.edu.co' })
-
-    const send = screen.getByRole('button', { name: 'Enviar propuesta' })
-    fireEvent.click(send)
-    fireEvent.click(send)
+    await sendAndReturn(user, () => fillIdea(user, { members: 'amiga@ucompensar.edu.co' }))
 
     expect(await screen.findByText('Recibimos tu propuesta')).toBeInTheDocument()
     expect(proposalsApi.create).toHaveBeenCalledTimes(1)
     expect(vi.mocked(proposalsApi.create).mock.calls[0][1]).toMatchObject({ title: 'Detección de fallas', member_emails: ['amiga@ucompensar.edu.co'], confirm_information: true, accept_data_policy: true })
-    expect(screen.getByRole('link', { name: 'Mis propuestas' })).toHaveAttribute('href', '/mis-propuestas')
     expect(sessionStorage.getItem('ucomp_idea_draft')).toBeNull()
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
   })
 
   it('closes the session only after the backend persisted the proposal, handing over a minimal one-time confirmation', async () => {
-    const user = userEvent.setup()
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
     vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
-    renderIdea()
-    await fillIdea(user)
-    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    renderReturned()
 
     await screen.findByText('Recibimos tu propuesta')
     expect(endSessionMock).toHaveBeenCalledTimes(1)
@@ -327,47 +365,82 @@ describe('tarjeta del banner y formulario público', () => {
   })
 
   it('reports a failed logout without losing the fact that the proposal was registered', async () => {
-    const user = userEvent.setup()
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
     vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
     endSessionMock.mockResolvedValueOnce('Error del servidor')
-    renderIdea()
-    await fillIdea(user)
-    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    renderReturned()
 
     expect(await screen.findByText('Recibimos tu propuesta')).toBeInTheDocument()
     expect(await screen.findByText(/No se pudo cerrar tu sesión: Error del servidor/)).toBeInTheDocument()
   })
 
-  it('shows API errors as errors, keeps what the student wrote and never claims success', async () => {
+  it('the confirmation button is «Volver a proyectos de grado» and goes straight to /proyectos-de-grado', async () => {
     const user = userEvent.setup()
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
-    vi.mocked(proposalsApi.create).mockRejectedValue(new ApiError(409, 'Ya registraste una propuesta con este título'))
-    renderIdea()
-    await fillIdea(user)
+    vi.mocked(proposalsApi.create).mockResolvedValue(proposal())
+    endSessionMock.mockResolvedValueOnce('Error del servidor') // sin cierre automático: la confirmación queda en el modal
+    renderReturned()
 
-    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    await user.click(await screen.findByRole('button', { name: 'Volver a proyectos de grado' }))
+    expect(screen.getByText('CATALOGO')).toBeInTheDocument()
+  })
+
+  it('shows API errors as errors, keeps the draft, never claims success and lets the student retry without a second login', async () => {
+    const user = userEvent.setup()
+    useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
+    vi.mocked(proposalsApi.create).mockRejectedValueOnce(new ApiError(409, 'Ya registraste una propuesta con este título')).mockResolvedValue(proposal())
+    const login = vi.fn(async () => {})
+    sessionStorage.setItem('ucomp_idea_draft', JSON.stringify(validDraft))
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnPath: '/', at: Date.now() }))
+    renderIdea(login)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Ya registraste una propuesta')
     expect(endSessionMock).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Título de la propuesta')).toHaveValue('Detección de fallas')
     expect(screen.queryByText('Recibimos tu propuesta')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Título de la propuesta')).toHaveValue('Detección de fallas')
+
+    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    expect(await screen.findByText('Recibimos tu propuesta')).toBeInTheDocument()
+    expect(login).not.toHaveBeenCalled()
+    expect(proposalsApi.create).toHaveBeenCalledTimes(2) // un reintento explícito, nunca uno automático
   })
 
-  it('a non-student account is told why and nothing is sent, even with a valid form', async () => {
-    const user = userEvent.setup()
+  it('a non-student account gets the exact message and the creation service is never called', async () => {
     useAppStore.setState({ currentUser: coordinator, isAuthenticated: true, accessToken: 'token' })
-    renderIdea()
-    expect(screen.getByText(/cuenta que no es de estudiante/)).toBeInTheDocument()
-    await fillIdea(user)
+    renderReturned()
 
-    const send = screen.getByRole('button', { name: 'Enviar propuesta' })
-    expect(send).toBeEnabled() // no queda apagado en silencio: explica el motivo al pulsarlo
-    await user.click(send)
-
-    expect(await screen.findByText(/no tiene el rol Estudiante/)).toBeInTheDocument()
+    expect(await screen.findByText('Solo las cuentas con rol Estudiante pueden presentar propuestas')).toBeInTheDocument()
     expect(proposalsApi.create).not.toHaveBeenCalled()
+    expect(endSessionMock).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Título de la propuesta')).toHaveValue('Detección de fallas') // el borrador no se pierde
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
+  })
+
+  it('a cancelled or failed Microsoft login keeps the draft, explains it and registers nothing', async () => {
+    renderReturned({}, 'Cancelaste el inicio de sesión con Microsoft.')
+
+    expect(await screen.findByText('Cancelaste el inicio de sesión con Microsoft.')).toBeInTheDocument()
+    expect(proposalsApi.create).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Título de la propuesta')).toHaveValue('Detección de fallas')
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
+  })
+
+  it('waits for the identity without sending anything while the session is still being restored', () => {
+    renderReturned()
+    expect(proposalsApi.create).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(PENDING_KEY)).not.toBeNull()
+  })
+
+  it('does not register twice: a reload while the request is in flight finds no pending send', async () => {
+    useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
+    vi.mocked(proposalsApi.create).mockReturnValue(new Promise(() => {}))
+    const first = renderReturned()
+    await waitFor(() => expect(proposalsApi.create).toHaveBeenCalledTimes(1))
+    expect(sessionStorage.getItem(PENDING_KEY)).toBeNull()
+
+    first.unmount()
+    renderIdea() // «recarga»: el borrador sigue, pero ya no hay envío pendiente
+    expect(proposalsApi.create).toHaveBeenCalledTimes(1)
   })
 
   it('disables the button only while sending, so a double click registers one proposal', async () => {
@@ -375,10 +448,8 @@ describe('tarjeta del banner y formulario público', () => {
     useAppStore.setState({ currentUser: student, isAuthenticated: true, accessToken: 'token' })
     let finish: (value: ReturnType<typeof proposal>) => void = () => {}
     vi.mocked(proposalsApi.create).mockReturnValue(new Promise((resolve) => { finish = resolve }))
-    renderIdea()
-    await fillIdea(user)
+    renderReturned()
 
-    await user.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
     expect(await screen.findByRole('button', { name: 'Enviando…' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Enviando…' }))
     expect(proposalsApi.create).toHaveBeenCalledTimes(1)

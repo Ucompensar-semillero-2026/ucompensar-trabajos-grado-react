@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import {
-  ArrowDown, ArrowRight, BookOpenCheck, CircleHelp, LogIn, UsersRound,
-  Lightbulb,
+  ArrowDown, BookOpenCheck, CircleHelp, LogIn, UsersRound,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui'
@@ -9,8 +8,8 @@ import { resetScrollToTop } from '@/utils/scrollLock'
 import { PublicFlashNotice } from './PublicFlashNotice'
 import { InstitutionalHeader } from './InstitutionalHeader'
 import { HeroTechOverlay } from './HeroTechOverlay'
-import { IDEA_SECTION_ID, IdeaProposalSection } from './IdeaProposalSection'
 import { ModalityCards } from './OpportunityCatalog'
+import { AcademicCalendar } from './calendar/AcademicCalendar'
 import { InstitutionalFooter } from './InstitutionalFooter'
 import { academicGuidanceResources } from './projectPlanning.data'
 import campusPhoto from '@/assets/images/ucompensar-campus.jpg'
@@ -22,12 +21,6 @@ function scrollToSection(id: string) {
   if (!section) return
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-}
-
-function goToIdeaForm() {
-  scrollToSection(IDEA_SECTION_ID)
-  // El foco al título anuncia la sección a lectores de pantalla sin provocar otro desplazamiento.
-  document.getElementById('idea-title')?.focus({ preventScroll: true })
 }
 
 export function ProjectsCatalog() {
@@ -126,33 +119,13 @@ export function ProjectsCatalog() {
               <p className="mt-2 text-sm leading-relaxed text-white/85">Consulta el estado de tu postulación, conoce los avances y realiza seguimiento a tu proceso académico desde el Portal de Trabajos de Grado.</p>
               <Button type="button" size="md" className="mt-4 min-h-11 w-full gap-2 bg-[#FF6B35] px-5 text-sm font-bold text-white hover:bg-[#F4511E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" onClick={() => navigate('/login')}><LogIn size={17} aria-hidden="true" />Ingresar al portal</Button>
             </aside>
-              <aside aria-labelledby="catalog-idea-title" className="rounded-2xl border border-white/20 bg-[#052B41]/90 p-5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.24)] backdrop-blur-md sm:p-6 lg:p-5">
-                <h2 id="catalog-idea-title" className="flex items-start gap-2 text-lg font-bold leading-snug text-white sm:text-xl"><Lightbulb size={20} className="mt-0.5 flex-shrink-0 text-[#FF8A50]" aria-hidden="true" />¿Tienes una idea para tu proyecto de grado?</h2>
-                <p className="mt-2 text-sm leading-relaxed text-white/85">¿Tú y tus compañeros tienen una propuesta? Compártela con nosotros para que Coordinación la evalúe y te oriente sobre cómo desarrollarla.</p>
-                <Button type="button" size="md" className="mt-4 min-h-11 w-full gap-2 bg-[#FF6B35] px-5 text-sm font-bold text-white hover:bg-[#F4511E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" onClick={goToIdeaForm}><Lightbulb size={17} aria-hidden="true" />Presentar mi idea</Button>
-              </aside>
             </div>
           </div>
         </section>
 
         <ModalityCards />
 
-        <IdeaProposalSection />
-
-        <section className="px-5 py-10 sm:px-8 sm:py-12">
-          <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-3xl border border-[#145B78]/30 bg-[radial-gradient(ellipse_at_88%_18%,rgba(255,107,53,0.24),transparent_34%),linear-gradient(110deg,#073B57_0%,#0B4865_58%,#124D64_100%)] px-6 py-8 shadow-[0_18px_42px_rgba(7,59,87,0.16)] sm:px-9 sm:py-9 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:px-12 2xl:max-w-screen-2xl">
-            <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/10 sm:-right-8 sm:-top-32 sm:h-96 sm:w-96" />
-            <span aria-hidden="true" className="pointer-events-none absolute -right-4 top-0 h-full w-1 bg-gradient-to-b from-[#FF6B35]/0 via-[#FF6B35]/70 to-[#FF6B35]/0 opacity-60" />
-            <div className="relative z-10 max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[.2em] text-[#FF9A68]">UCompensar · Ingeniería</p>
-              <h2 className="mt-3 text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">Tu próximo paso comienza con una decisión.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base">Explora las modalidades, conoce las oportunidades disponibles y encuentra una alternativa para desarrollar tu proyecto de grado.</p>
-            </div>
-            <Button size="lg" className="relative z-10 mt-6 min-h-12 shrink-0 bg-[#FF6B35] px-6 text-sm font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#F4511E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:mt-0" onClick={scrollToModalities}>
-              Explorar modalidades <ArrowRight size={17} aria-hidden="true" />
-            </Button>
-          </div>
-        </section>
+        <AcademicCalendar />
 
         <section className="px-5 py-12 sm:px-8 sm:py-16">
           <div className="mx-auto max-w-7xl 2xl:max-w-screen-2xl">

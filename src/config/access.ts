@@ -21,6 +21,8 @@ export const MODULE_ROLES: Partial<Record<NavSection, readonly InstitutionalRole
   asignacion: ['Coordinador', 'Administrador'],
   // Portafolio general: el backend exige coordinador/administrativo en /api/coordination/portfolio.
   portafolio: ['Coordinador', 'Administrador'],
+  // Calendario de procesos de grado: el backend exige coordinador/administrativo en /api/coordination/calendar.
+  calendario: ['Coordinador', 'Administrador'],
   // Espacio del tutor: la ruta la abren Docente y Coordinador (que también puede tutorizar); el backend
   // decide qué proyectos devuelve según la asignación real en process_team.
   tutor: ['Docente', 'Coordinador'],
