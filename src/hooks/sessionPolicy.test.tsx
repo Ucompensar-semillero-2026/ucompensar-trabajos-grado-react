@@ -269,7 +269,7 @@ describe('cierre tras una operación pública', () => {
     expect(await screen.findByText('Recibimos tu propuesta')).toBeInTheDocument()
     expect(peekFlash()).toBeNull() // ya consumida
 
-    await u.click(screen.getByRole('button', { name: /Volver al catálogo/ }))
+    await u.click(screen.getByRole('button', { name: 'Volver a proyectos de grado' }))
     expect(screen.queryByText('Recibimos tu propuesta')).not.toBeInTheDocument()
 
     first.unmount()

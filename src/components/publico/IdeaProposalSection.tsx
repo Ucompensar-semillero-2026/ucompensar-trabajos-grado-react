@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { CheckCircle2, Lightbulb, Plus, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowRight, CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
 import { useAppStore } from '@/stores/app.store'
@@ -8,8 +8,52 @@ import { ApiError } from '@/services/http'
 import type { PublicFlash } from '@/services/sessionFlash'
 import { MODALITY_LABELS, PROPOSAL_LIMITS, proposalsApi, type ProposalOut, type SuggestedModality } from '@/services/proposals.service'
 
-export const IDEA_SECTION_ID = 'proponer-idea'
+export const NOT_STUDENT_MESSAGE = 'Solo las cuentas con rol Estudiante pueden presentar propuestas'
+export const PROPOSALS_CATALOG_PATH = '/proyectos-de-grado'
 const DRAFT_KEY = 'ucomp_idea_draft'
+// Envío en curso: se marca antes de ir a Microsoft y se CONSUME (se borra) antes de crear la propuesta, de modo que
+// una recarga, el doble montaje de StrictMode o un reintento nunca la registren dos veces. Sin tokens ni credenciales.
+const PENDING_KEY = 'ucomp_idea_pending'
+const PENDING_TTL_MS = 10 * 60 * 1000
+
+interface PendingSubmit {
+  returnPath: string
+  at: number
+}
+
+export function readPendingSubmit(): PendingSubmit | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    const pending = JSON.parse(raw) as PendingSubmit
+    return Date.now() - pending.at <= PENDING_TTL_MS ? pending : null
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingSubmit() {
+  try {
+    sessionStorage.removeItem(PENDING_KEY)
+  } catch {
+    // nada que limpiar
+  }
+}
+
+function markPendingSubmit(returnPath: string) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnPath, at: Date.now() } satisfies PendingSubmit))
+  } catch {
+    // sin sessionStorage el borrador no sobrevive a la redirección de Microsoft
+  }
+}
+
+/** Consume la marca: devuelve true una sola vez. */
+function takePendingSubmit(): boolean {
+  const pending = readPendingSubmit()
+  clearPendingSubmit()
+  return pending !== null
+}
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 interface Draft {
@@ -122,13 +166,27 @@ const fieldClass =
   'w-full rounded-xl border border-[#C9D6DF] bg-white px-4 py-3 text-[15px] text-[#172B3A] outline-none focus:border-[#0876B9] focus:ring-2 focus:ring-[#0876B9]/20'
 const labelClass = 'mb-1.5 block text-sm font-semibold text-[#073B57]'
 
-export function IdeaProposalSection() {
+interface IdeaProposalSectionProps {
+  /** Modalidad precargada (la de la página desde la que se abrió el modal). */
+  modality?: SuggestedModality
+  /** Ruta a la que Microsoft devuelve al estudiante para restaurar el borrador. */
+  returnPath?: string
+  /** Cierra el contenedor (modal) antes de volver al catálogo. */
+  onDone?: () => void
+}
+
+export function IdeaProposalSection({ modality, returnPath = PROPOSALS_CATALOG_PATH, onDone }: IdeaProposalSectionProps = {}) {
   const flow = useContext(AuthFlowContext)
-  const location = useLocation()
+  const navigate = useNavigate()
   const accessToken = useAppStore((s) => s.accessToken)
   const user = useAppStore((s) => s.currentUser)
   const isStudent = user?.role === 'estudiante'
-  const [draft, setDraft] = useState<Draft>(readDraft)
+  const [draft, setDraft] = useState<Draft>(() => {
+    const saved = readDraft()
+    return modality ? { ...saved, modality } : saved
+  })
+  // true cuando la sesión se acaba de abrir en ESTE envío: permite reintentar tras un error del servidor sin repetir el login.
+  const freshlyAuthenticated = useRef(false)
   const [error, setError] = useState<string | null>(null) // errores del servidor, de rol o de red
   const [attempted, setAttempted] = useState(false)
   const [sessionNotice, setSessionNotice] = useState<string | null>(null)
@@ -137,13 +195,6 @@ export function IdeaProposalSection() {
   const [sending, setSending] = useState(false)
   const submitting = useRef(false)
   const [created, setCreated] = useState<ProposalOut | null>(null)
-
-  // Al volver de Microsoft (…#proponer-idea) se baja al formulario; el borrador ya se restauró desde sessionStorage.
-  useEffect(() => {
-    if (location.hash !== `#${IDEA_SECTION_ID}`) return
-    const timer = window.setTimeout(() => document.getElementById(IDEA_SECTION_ID)?.scrollIntoView({ behavior: 'auto', block: 'start' }), 80)
-    return () => window.clearTimeout(timer)
-  }, [location.hash])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((current) => {
@@ -185,20 +236,40 @@ export function IdeaProposalSection() {
     set('members', draft.members.length > 1 ? draft.members.filter((_, i) => i !== index) : draft.members)
   }
 
+  // Enviar SIEMPRE pasa por Microsoft (no se asume una sesión previa). El borrador y la ruta de retorno se guardan en
+  // sessionStorage; al volver autenticado, el efecto de abajo valida el rol y crea la propuesta una sola vez.
   const signIn = () => {
+    if (submitting.current) return
     setError(null)
     setAttempted(true)
-    if (Object.keys(validateFields(draft, null, false)).length > 0) return setShowMemberErrors(true)
-    saveDraft(draft) // se conserva durante la redirección; NO se registra nada hasta confirmar el envío ya autenticado
+    if (Object.keys(validateFields(draft, user?.email ?? null)).length > 0) return setShowMemberErrors(true)
     if (!flow) return setError('El inicio de sesión con Microsoft no está disponible en este momento. Inténtalo de nuevo más tarde.')
-    void flow.loginWithMicrosoft(`/proyectos-de-grado#${IDEA_SECTION_ID}`)
+    saveDraft(draft)
+    markPendingSubmit(returnPath)
+    void flow.loginWithMicrosoft(returnPath)
   }
+
+  // Vuelta de Microsoft: con identidad lista se valida el rol y se envía; si Microsoft devolvió un error (p. ej. el
+  // usuario canceló), se informa y el borrador sigue intacto. La marca se consume antes de crear para no duplicar.
+  useEffect(() => {
+    if (!readPendingSubmit()) return
+    if (user && accessToken) {
+      if (!takePendingSubmit()) return
+      freshlyAuthenticated.current = true
+      void submit()
+    } else if (flow?.loginError) {
+      takePendingSubmit()
+      setError(flow.loginError)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, accessToken, flow?.loginError])
 
   const submit = async () => {
     if (!accessToken || !user || submitting.current) return
     setAttempted(true)
     setError(null)
-    if (!isStudent) return setError('Tu cuenta no tiene el rol Estudiante, por lo que no puede registrar propuestas. Inicia sesión con tu cuenta institucional de estudiante.')
+    // El rol sale de /auth/me (BD + App Roles de Entra), no del navegador. Sin rol Estudiante NO se llama al servicio de creación.
+    if (!isStudent) return setError(NOT_STUDENT_MESSAGE)
     if (Object.keys(validateFields(draft, user.email)).length > 0) return setShowMemberErrors(true)
     submitting.current = true
     setSending(true)
@@ -216,14 +287,15 @@ export function IdeaProposalSection() {
         accept_data_policy: draft.policy,
       })
       clearDraft()
+      clearPendingSubmit()
       setDraft(EMPTY)
       const confirmation: PublicFlash = { kind: 'proposal', code: result.code, title: result.title }
       setShowMemberErrors(false)
       setAttempted(false)
       setCreated(result) // solo se muestra tras la confirmación real del backend
-      // La propuesta ya está persistida: se cierra la sesión (app y Microsoft) y se vuelve al catálogo con la confirmación.
-      // Si el cierre falla, la sesión sigue activa y la confirmación permanece visible aquí.
-      void flow?.endSession({ reason: 'proposal_success', returnTo: '/proyectos-de-grado', flash: confirmation }).then((message) => setSessionNotice(message))
+      // La propuesta ya está persistida: se cierra la sesión en silencio y se vuelve al catálogo, donde la confirmación se
+      // restaura una sola vez. Si el cierre falla, la sesión sigue activa y la confirmación permanece visible aquí.
+      void flow?.endSession({ reason: 'proposal_success', returnTo: PROPOSALS_CATALOG_PATH, flash: confirmation }).then((message) => setSessionNotice(message))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo enviar la propuesta. Revisa la conexión e inténtalo de nuevo.')
     } finally {
@@ -233,13 +305,9 @@ export function IdeaProposalSection() {
   }
 
   return (
-    <section id={IDEA_SECTION_ID} aria-labelledby="idea-title" className="scroll-mt-24 px-5 py-12 sm:px-8 sm:py-16">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-[#DCE5E9] bg-white p-6 shadow-[0_18px_42px_rgba(7,59,87,0.08)] sm:p-10">
-        <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-[#F4511E]">
-          <Lightbulb size={15} aria-hidden="true" /> Propón tu proyecto de grado
-        </p>
-        <h2 id="idea-title" tabIndex={-1} className="mt-2 text-3xl font-bold text-[#073B57] outline-none sm:text-4xl">Cuéntanos tu idea</h2>
-        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[#526575]">
+    <section aria-labelledby="idea-title">
+      <div>
+        <p className="text-[15px] leading-relaxed text-[#526575]">
           Si ya tienes una propuesta, solo tuya o con compañeros, compártela. Coordinación la evaluará y te orientará. Una propuesta no es todavía un proceso oficial de grado.
         </p>
 
@@ -247,10 +315,12 @@ export function IdeaProposalSection() {
           <div role="status" className="mt-8 rounded-2xl border border-[#BFE3CF] bg-[#EAF7F1] p-6">
             <p className="flex items-center gap-2 text-lg font-bold text-[#15804B]"><CheckCircle2 size={22} aria-hidden="true" /> Recibimos tu propuesta</p>
             <p className="mt-2 text-[15px] text-[#173B2A]">
-              Código <strong>{created.code}</strong>. Quedó en estado «Pendiente de revisión». Puedes seguir su estado y las observaciones de Coordinación en{' '}
-              <Link to="/mis-propuestas" className="font-bold underline underline-offset-4">Mis propuestas</Link>.
+              Código <strong>{created.code}</strong>. Quedó en estado «Pendiente de revisión». Coordinación la revisará y podrás seguir su estado desde «Mis propuestas» cuando inicies sesión.
             </p>
             {sessionNotice && <p role="alert" className="mt-2 text-sm font-medium text-red-700">No se pudo cerrar tu sesión: {sessionNotice}. Tu propuesta sí quedó registrada; cierra la sesión desde el portal.</p>}
+            <Button type="button" className="mt-4 min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={() => { onDone?.(); navigate(PROPOSALS_CATALOG_PATH) }}>
+              Volver a proyectos de grado <ArrowRight size={16} aria-hidden="true" />
+            </Button>
           </div>
         ) : (
           <form
@@ -258,7 +328,7 @@ export function IdeaProposalSection() {
             noValidate
             onSubmit={(e) => {
               e.preventDefault()
-              if (user) void submit()
+              if (user && freshlyAuthenticated.current) void submit()
               else signIn()
             }}
           >
@@ -376,13 +446,12 @@ export function IdeaProposalSection() {
               </p>
             )}
             {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
-            {user && !isStudent && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">Estás con una cuenta que no es de estudiante: solo las cuentas con rol Estudiante pueden presentar propuestas.</p>}
 
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" size="lg" disabled={sending} className="min-h-12 bg-[#FF6B35] px-7 font-bold text-white hover:bg-[#F4511E]">
-                {sending ? 'Enviando…' : user ? 'Enviar propuesta' : 'Iniciar sesión con Microsoft para enviar'}
+                {sending ? 'Enviando…' : 'Enviar propuesta'}
               </Button>
-              {!user && <p className="text-sm text-[#526575]">Puedes redactar tu idea ahora: se conserva mientras inicias sesión. No se envía nada hasta que la confirmes.</p>}
+              <p className="text-sm text-[#526575]">Al enviar se te pedirá iniciar sesión con tu cuenta institucional de Microsoft. Tu borrador se conserva mientras lo haces.</p>
             </div>
           </form>
         )}

@@ -39,6 +39,7 @@ import { InstitutionalHome } from '@/components/publico/InstitutionalHome'
 import { ProjectsCatalog } from '@/components/publico/ProjectsCatalog'
 import { ProjectDetail } from '@/components/publico/ProjectDetail'
 import { ModalityOpportunitiesPage } from '@/components/publico/ModalityOpportunitiesPage'
+import { CalendarioAcademico } from '@/components/coordinacion/CalendarioAcademico'
 
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
@@ -78,6 +79,8 @@ export default function App() {
         {/* Public institutional prototype */}
         <Route path="/" element={<InstitutionalHome />} />
         <Route path="/proyectos-de-grado" element={<ProjectsCatalog />} />
+        {/* Enlaces antiguos: el calendario vive dentro del catálogo, ya no es una página aparte */}
+        <Route path="/proyectos-de-grado/calendario" element={<Navigate to="/proyectos-de-grado#calendario" replace />} />
         <Route path="/proyectos-de-grado/modalidad/:modalitySlug" element={<ModalityOpportunitiesPage />} />
         <Route path="/proyectos-de-grado/:offerId" element={<ProjectDetail />} />
         {/* Public — Login */}
@@ -112,6 +115,7 @@ export default function App() {
           <Route path="/mis-propuestas" element={<RequireRole roles={MODULE_ROLES['mis-propuestas']}><MisPropuestas /></RequireRole>} />
           {/* Coordinación académica: el backend exige coordinador/administrativo en cada endpoint */}
           <Route path="/coordinacion/portafolio" element={<RequireRole roles={MODULE_ROLES.portafolio}><PortafolioProyectos /></RequireRole>} />
+          <Route path="/coordinacion/calendario" element={<RequireRole roles={MODULE_ROLES.calendario}><CalendarioAcademico /></RequireRole>} />
           <Route path="/coordinacion/propuestas" element={<RequireRole roles={MODULE_ROLES.propuestas}><PropuestasEstudiantiles /></RequireRole>} />
           <Route path="/coordinacion/propuestas/:proposalId" element={<RequireRole roles={MODULE_ROLES.propuestas}><PropuestaDetalle /></RequireRole>} />
           <Route path="/coordinacion/asignacion" element={<RequireRole roles={MODULE_ROLES.asignacion}><AsignacionTutores /></RequireRole>} />
