@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/app.store'
 import type { BackendUser } from '@/types/api'
 import type { AuthMethod } from '@/types'
-import { ApiError } from '@/services/http'
+import { ApiError, SESSION_FLAG_KEY } from '@/services/http'
 import { authApi } from '@/services/auth.service'
 import {
   clearMicrosoftSession,
@@ -68,8 +68,6 @@ function safeReturnPath(state: string | undefined): string | null {
   if (!state || !state.startsWith('/') || state.startsWith('//') || state.startsWith('/\\')) return null
   return state
 }
-
-const SESSION_FLAG_KEY = 'ucomp_has_session'
 
 // El resultado del redirect se consume una sola vez. Sin esto, el doble
 // montaje de StrictMode en desarrollo mandaría el id_token dos veces.

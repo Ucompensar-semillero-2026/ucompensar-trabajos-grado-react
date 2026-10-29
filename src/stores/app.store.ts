@@ -13,6 +13,8 @@ interface AppState {
 
   // Actions
   loginSuccess: (user: User, accessToken: string) => void
+  // Renovación silenciosa (services/http.ts): solo cambia el token, el usuario sigue igual.
+  setAccessToken: (accessToken: string) => void
   logout: () => void
   setSection: (section: NavSection) => void
   setSearchQuery: (q: string) => void
@@ -31,6 +33,8 @@ export const useAppStore = create<AppState>((set) => ({
       currentUser: user,
       accessToken,
     }),
+
+  setAccessToken: (accessToken) => set({ accessToken }),
 
   logout: () =>
     set({
