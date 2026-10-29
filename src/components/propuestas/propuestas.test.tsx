@@ -52,7 +52,7 @@ const summaryOf = (o: Partial<Record<ProposalStatus, number>> = {}) => ({
   by_status: { pendiente_revision: 2, en_evaluacion: 1, requiere_informacion: 1, aprobada: 1, pendiente_tutor: 0, tutor_asignado: 0, rechazada: 0, convertida: 0, ...o } as Record<ProposalStatus, number>,
 })
 
-const endSessionMock = vi.fn(async (_options?: unknown): Promise<string | null> => null)
+const endSessionMock = vi.fn<(options?: unknown) => Promise<string | null>>(async () => null)
 const authFlow = (loginWithMicrosoft = vi.fn(async () => {})) => ({ loginWithMicrosoft, endSession: endSessionMock, loginError: null })
 const renderIdea = (loginWithMicrosoft?: () => Promise<void>) =>
   render(<MemoryRouter><AuthFlowContext.Provider value={authFlow(loginWithMicrosoft as never)}><IdeaProposalSection /></AuthFlowContext.Provider></MemoryRouter>)
