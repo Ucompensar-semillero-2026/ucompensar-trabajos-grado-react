@@ -25,6 +25,13 @@
     --color-amber: #f7a400;
     --color-amber-soft: rgba(247, 164, 0, 0.1);
 
+    /* Series de gráficos: orden fijo, validado para daltonismo (contraste bajo: los valores van siempre rotulados) */
+    --chart-1: #0876B9;
+    --chart-2: #FF6600;
+    --chart-3: #00A3AF;
+    --chart-4: #D99000;
+    --chart-5: #7A5AC8;
+
     /* Neutral Scale (Premium Professional) */
     --color-bg: #FDFDFD;
     --color-surface: #FFFFFF;
@@ -59,6 +66,11 @@
     --color-secondary-hover: #00c2d1;
     --color-secondary-soft: rgba(0, 173, 186, 0.15);
     --color-sand-soft: rgba(247, 216, 164, 0.05);
+    --chart-1: #3B8FD9;
+    --chart-2: #E85C10;
+    --chart-3: #14A3AF;
+    --chart-4: #BA7C05;
+    --chart-5: #9278DE;
 
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.5);

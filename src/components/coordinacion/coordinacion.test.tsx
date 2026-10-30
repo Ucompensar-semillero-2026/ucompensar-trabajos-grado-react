@@ -5,16 +5,19 @@ import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
-import type { CoordinationPage, CoordinationProcessOut, CoordinationSummary } from '@/services/coordination.service'
+import type { CoordinationPage, CoordinationProcessOut, CoordinationSummary, PortfolioItem, PortfolioSummary } from '@/services/coordination.service'
 
-vi.mock('@/services/coordination.service', () => ({ coordinationApi: { summary: vi.fn(), processes: vi.fn() } }))
+vi.mock('@/services/coordination.service', () => ({
+  coordinationApi: { summary: vi.fn(), processes: vi.fn() },
+  portfolioApi: { summary: vi.fn(), list: vi.fn() },
+}))
 vi.mock('@/services/processes.service', () => ({
   processesApi: { teamCandidates: vi.fn(), addTeamMember: vi.fn(), changeTutor: vi.fn(), team: vi.fn() },
 }))
 vi.mock('@/services/modalities.service', () => ({ modalitiesApi: { list: vi.fn() } }))
 vi.mock('@/components/dashboard/DashboardSection', () => ({ DashboardSection: () => <p>tablero general</p> }))
 
-import { coordinationApi } from '@/services/coordination.service'
+import { coordinationApi, portfolioApi } from '@/services/coordination.service'
 import { processesApi } from '@/services/processes.service'
 import { modalitiesApi } from '@/services/modalities.service'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -40,6 +43,19 @@ const row = (o: Partial<CoordinationProcessOut> = {}): CoordinationProcessOut =>
 
 const page = (items: CoordinationProcessOut[], total = items.length): CoordinationPage => ({ items, total, page: 1, page_size: 15 })
 
+const portfolioSummary = (o: Partial<PortfolioSummary> = {}): PortfolioSummary => ({
+  proposals_to_evaluate: 3, pending_assignment: 2, pending_assignment_processes: 2, in_progress: 3, finished: 1, delayed: 1, total: 9, ...o,
+})
+
+const recent = () => new Date(Date.now() - 2 * 86_400_000).toISOString()
+const item = (o: Partial<PortfolioItem> = {}): PortfolioItem => ({
+  kind: 'proceso', public_id: 'p1', code: 'PROYECTO_INV-2026-AAA', title: 'Detección de fallas', modality_code: 'PROYECTO_INV',
+  modality_name: 'Proyecto de investigación', holder: 'Ana Estudiante', tutor: null, state_code: 'RADICADO', state_name: 'Radicado',
+  category: 'por_asignar', created_at: recent(), updated_at: recent(), closed_at: null, plan_status: null, progress: null, overdue: false, ...o,
+})
+
+const portfolioPage = (items: PortfolioItem[], total = items.length) => ({ items, total, page: 1, page_size: 100, facets: { tutors: [], modalities: [], states: [] } })
+
 const candidate = (id: string, name: string, role = 'tutor_investigador', active = 0) => ({ public_id: id, full_name: name, email: `${id}@u.co`, role: { name: role }, active_projects: active })
 
 const renderAt = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>)
@@ -48,6 +64,8 @@ beforeEach(() => {
   useAppStore.setState({ currentUser: coordinator, isAuthenticated: true, accessToken: 'token' })
   vi.mocked(modalitiesApi.list).mockResolvedValue([{ public_id: 'm1', code: 'PROYECTO_INV', name: 'Proyecto de investigación' }])
   vi.mocked(processesApi.team).mockResolvedValue([])
+  vi.mocked(portfolioApi.summary).mockResolvedValue(portfolioSummary())
+  vi.mocked(portfolioApi.list).mockResolvedValue(portfolioPage([]))
 })
 
 afterEach(() => {
@@ -87,6 +105,51 @@ describe('Dashboard de Coordinación', () => {
     expect(screen.getByRole('link', { name: /Gestión de proyectos/ })).toHaveAttribute('href', '/tramites')
     expect(screen.getByRole('link', { name: /Seguimiento e informes/ })).toHaveAttribute('href', '/reportes')
     expect(coordinationApi.processes).toHaveBeenCalledWith('token', { assignment: 'sin_tutor', page_size: 5 })
+  })
+
+  it('draws the charts from the portfolio and links each bar, slice and indicator to its filtered list', async () => {
+    vi.mocked(coordinationApi.summary).mockResolvedValue(summary({ state_distribution: [{ code: 'RADICADO', name: 'Radicado', count: 2 }, { code: 'EN_EJECUCION', name: 'En ejecución', count: 1 }, { code: 'CERRADO', name: 'Cerrado', count: 0 }] }))
+    vi.mocked(coordinationApi.processes).mockResolvedValue(page([row()]))
+    const tutor = { public_id: 't1', full_name: 'Andres Consultor' }
+    vi.mocked(portfolioApi.list).mockResolvedValue(portfolioPage([
+      item(),
+      item({ public_id: 'p2', modality_code: 'SEMILLERO_INV', modality_name: 'Semillero de investigación', holder: 'Luis Estudiante', tutor, category: 'en_proceso', overdue: true }),
+      item({ public_id: 'p3', holder: 'Sara Estudiante', tutor, category: 'en_proceso', updated_at: new Date(Date.now() - 40 * 86_400_000).toISOString() }),
+    ], 120))
+    renderAt(<CoordinationDashboard />)
+
+    const states = await screen.findByRole('region', { name: 'Trámites por estado' })
+    expect(within(states).getByRole('link', { name: /Radicado: 2 trámites/ })).toHaveAttribute('href', '/coordinacion/portafolio?kind=proceso&state=RADICADO')
+    expect(within(states).queryByText('Cerrado')).not.toBeInTheDocument() // los estados en cero no ocupan espacio
+
+    const modality = await screen.findByRole('region', { name: 'Trámites por modalidad' })
+    expect(await within(modality).findByRole('link', { name: /Proyecto de investigación: 2 \(67%\)/ })).toHaveAttribute('href', '/coordinacion/portafolio?kind=proceso&modality=PROYECTO_INV')
+
+    const tutors = screen.getByRole('region', { name: 'Carga de tutores' })
+    expect(within(tutors).getByRole('link', { name: /Andres Consultor: 2 proyectos/ })).toHaveAttribute('href', '/coordinacion/portafolio?kind=proceso&tutor=t1')
+
+    const attention = screen.getByText('Requieren atención').closest('.card') as HTMLElement
+    const lines = within(attention).getAllByRole('listitem').map((li) => li.textContent)
+    expect(lines[0]).toMatch(/Luis Estudiante.*Entregas vencidas/)
+    expect(lines[1]).toMatch(/Sara Estudiante.*Sin movimiento hace 40 días/)
+    expect(within(attention).queryByText('Ana Estudiante')).not.toBeInTheDocument() // sin tutor: va en su propia tarjeta
+
+    expect(screen.getByText(/se calculan con 3 de 120 trámites/)).toBeInTheDocument()
+    expect(screen.getByText('Propuestas por evaluar').closest('a')).toHaveAttribute('href', '/coordinacion/propuestas')
+    expect(screen.getByText('Pendientes de asignar tutor').closest('a')).toHaveAttribute('href', '/coordinacion/asignacion')
+    expect(portfolioApi.list).toHaveBeenCalledWith('token', { kind: 'proceso', page_size: 100 })
+  })
+
+  it('keeps the panel working when only the chart data fails', async () => {
+    vi.mocked(coordinationApi.summary).mockResolvedValue(summary())
+    vi.mocked(coordinationApi.processes).mockResolvedValue(page([row()]))
+    vi.mocked(portfolioApi.list).mockRejectedValue(new ApiError(500, 'Error del servidor'))
+    vi.mocked(portfolioApi.summary).mockRejectedValue(new ApiError(500, 'Error del servidor'))
+    renderAt(<CoordinationDashboard />)
+
+    expect(await screen.findByText('Procesos registrados')).toBeInTheDocument()
+    expect((await screen.findAllByText(/No se pudieron cargar estos datos/)).length).toBeGreaterThan(0)
+    expect(within(screen.getByText('Finalizados').closest('.card') as HTMLElement).getByText('—')).toBeInTheDocument()
   })
 
   it('shows zeros only when the API answered with an empty collection, with a clear empty state', async () => {
