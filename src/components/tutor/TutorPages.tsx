@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { AlertCircle, BarChart3, CalendarClock, ClipboardList, FileCheck2, Gauge, GraduationCap, Hourglass, Users } from 'lucide-react'
 import { Badge, Card, EmptyState, MetricCard } from '@/components/ui'
 import { formatRelativeDate } from '@/utils/format'
+import { ChartCard, ChartEmpty, HBarList } from '@/components/dashboard/charts'
 import { formatCalendarDate, STATUS_META } from '@/components/proceso/workPlanUi'
 import type { DeliverableStatus } from '@/services/workplan.service'
 import type { TutorOverviewOut } from '@/services/tutor.service'
@@ -47,21 +48,46 @@ export function TutorPanel() {
   if (gate || !data) return <>{gate}</>
   const { stats } = data
   const sub = (text: string) => <span>{text}</span>
+  const progressBars = data.projects
+    .filter((p) => p.progress)
+    .map((p) => ({ key: p.process_public_id, label: p.student.full_name, value: p.progress?.percent ?? 0, to: `/tutor/proyectos/${p.process_public_id}` }))
+    .sort((a, b) => a.value - b.value)
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Proyectos asignados" value={stats.assigned_projects} sub={sub('Donde eres tutor activo')} icon={<Users size={16} />} />
+        <MetricCard label="Proyectos asignados" value={stats.assigned_projects} sub={sub('Donde eres tutor activo')} icon={<Users size={16} />} to="/tutor/proyectos" />
         <MetricCard label="Estudiantes activos" value={stats.active_students} sub={sub('Con proceso sin cerrar')} icon={<GraduationCap size={16} />} />
-        <MetricCard label="Entregas por revisar" value={stats.pending_reviews} sub={sub('Esperan tu decisión')} icon={<FileCheck2 size={16} />} />
-        <MetricCard label="Próximas a vencer" value={stats.due_soon} sub={sub('En los próximos 7 días')} icon={<CalendarClock size={16} />} />
-        <MetricCard label="Con correcciones pendientes" value={stats.needs_corrections} sub={sub('Esperan al estudiante')} icon={<AlertCircle size={16} />} />
+        <MetricCard label="Entregas por revisar" value={stats.pending_reviews} sub={sub('Esperan tu decisión')} icon={<FileCheck2 size={16} />} subColor={stats.pending_reviews > 0 ? 'var(--color-primary)' : undefined} to="/tutor/revisiones" />
+        <MetricCard label="Próximas a vencer" value={stats.due_soon} sub={sub('En los próximos 7 días')} icon={<CalendarClock size={16} />} to="/tutor/estadisticas" />
+        <MetricCard label="Con correcciones pendientes" value={stats.needs_corrections} sub={sub('Esperan al estudiante')} icon={<AlertCircle size={16} />} to="/tutor/proyectos" />
         <MetricCard
           label="Promedio de avance"
           value={stats.average_progress === null ? '—' : `${stats.average_progress}%`}
           sub={sub(stats.average_progress === null ? 'Sin planes publicados con entregables obligatorios' : 'Solo proyectos con plan publicado')}
           icon={<Gauge size={16} />}
+          to="/tutor/estadisticas"
         />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <ChartCard
+          title="Avance por proyecto"
+          subtitle="Entregables obligatorios aprobados · toca uno para abrirlo"
+          table={{ headers: ['Estudiante', 'Avance'], rows: progressBars.map((p) => [p.label, `${p.value}%`]) }}
+        >
+          {progressBars.length === 0 ? (
+            <ChartEmpty>Ningún proyecto tiene todavía un plan publicado.</ChartEmpty>
+          ) : (
+            <HBarList data={progressBars} max={100} unit="" format={(v) => `${v}%`} />
+          )}
+          {data.projects.length > progressBars.length && progressBars.length > 0 && (
+            <p className="mt-2 px-2 text-[12px] text-[var(--color-text-muted)]">{data.projects.length - progressBars.length} proyecto(s) aún sin plan publicado.</p>
+          )}
+        </ChartCard>
+        <ChartCard title="Estado de los entregables" subtitle="Todos tus proyectos con plan publicado">
+          <Distribution stats={stats} />
+        </ChartCard>
       </div>
 
       <Card>
@@ -98,8 +124,10 @@ export function TutorPanel() {
             <ul className="divide-y divide-[var(--color-border)]">
               {data.upcoming_deadlines.slice(0, 5).map((d, i) => (
                 <li key={`${d.process_public_id}-${i}`} className="py-2.5">
-                  <p className="text-[14px] font-semibold text-[var(--color-text)]">{d.deliverable_title}</p>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">{d.student.full_name} · {formatCalendarDate(d.due_date)}</p>
+                  <Link to={`/tutor/proyectos/${d.process_public_id}`} className="text-[14px] font-semibold text-[#0876B9] hover:underline">{d.deliverable_title}</Link>
+                  <p className={`text-[12px] ${d.is_overdue ? 'font-semibold text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}`}>
+                    {d.student.full_name} · {d.is_overdue ? 'Vencida · ' : ''}{formatCalendarDate(d.due_date)}
+                  </p>
                 </li>
               ))}
             </ul>

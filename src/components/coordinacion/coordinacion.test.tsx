@@ -16,6 +16,8 @@ vi.mock('@/services/processes.service', () => ({
 }))
 vi.mock('@/services/modalities.service', () => ({ modalitiesApi: { list: vi.fn() } }))
 vi.mock('@/components/dashboard/DashboardSection', () => ({ DashboardSection: () => <p>tablero general</p> }))
+vi.mock('@/components/dashboard/StudentDashboard', () => ({ StudentDashboard: () => <p>panel del estudiante</p> }))
+vi.mock('@/components/tutor/TutorPages', () => ({ TutorPanel: () => <p>panel del tutor</p> }))
 
 import { coordinationApi, portfolioApi } from '@/services/coordination.service'
 import { processesApi } from '@/services/processes.service'
@@ -174,16 +176,24 @@ describe('Dashboard de Coordinación', () => {
     expect(await screen.findByText('Procesos registrados')).toBeInTheDocument()
   })
 
-  it('/dashboard shows the coordination panel to coordinators and the general board to everyone else', async () => {
+  it('/dashboard shows each role its own panel and the general board to anyone else', async () => {
     vi.mocked(coordinationApi.summary).mockResolvedValue(summary())
     vi.mocked(coordinationApi.processes).mockResolvedValue(page([]))
     const { unmount } = renderAt(<DashboardRoute />)
     expect(await screen.findByText('Procesos registrados')).toBeInTheDocument()
     unmount()
 
-    useAppStore.setState({ currentUser: student })
-    renderAt(<DashboardRoute />)
-    expect(screen.getByText('tablero general')).toBeInTheDocument()
+    const panels: Array<[User, string]> = [
+      [student, 'panel del estudiante'],
+      [teacher, 'panel del tutor'],
+      [{ ...teacher, id: 'x1', role: 'consejo_facultad', institutionalRoles: ['ComiteGrado'] }, 'tablero general'],
+    ]
+    for (const [who, text] of panels) {
+      useAppStore.setState({ currentUser: who })
+      const view = renderAt(<DashboardRoute />)
+      expect(screen.getByText(text)).toBeInTheDocument()
+      view.unmount()
+    }
   })
 })
 

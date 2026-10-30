@@ -67,16 +67,23 @@ function MaybeLink({ to, className, label, children }: { to?: string; className:
 }
 
 /** Barras horizontales de una sola serie: etiqueta, valor rotulado y barra proporcional al máximo. */
-export function HBarList({ data, color = CHART_COLORS[0], unit = 'trámites' }: { data: ChartDatum[]; color?: string; unit?: string }) {
-  const max = Math.max(1, ...data.map((d) => d.value))
+export function HBarList({ data, color = CHART_COLORS[0], unit = 'trámites', max: fixedMax, format = String }: {
+  data: ChartDatum[]
+  color?: string
+  unit?: string
+  /** Tope fijo de la escala (p. ej. 100 para porcentajes); por defecto, el mayor valor. */
+  max?: number
+  format?: (value: number) => string
+}) {
+  const max = fixedMax ?? Math.max(1, ...data.map((d) => d.value))
   return (
     <ul className="space-y-1">
       {data.map((d) => (
         <li key={d.key}>
-          <MaybeLink to={d.to} label={`${d.label}: ${d.value} ${unit}${d.to ? ' (ver lista)' : ''}`} className="group block px-2 py-2">
+          <MaybeLink to={d.to} label={`${d.label}: ${[format(d.value), unit].filter(Boolean).join(' ')}${d.to ? ' (ver detalle)' : ''}`} className="group block px-2 py-2">
             <span className="flex items-baseline justify-between gap-3 text-[12.5px]">
               <span className="truncate text-[var(--color-text-muted)] group-hover:text-[var(--color-text)]">{d.label}</span>
-              <span className="flex-shrink-0 font-bold tabular-nums text-[var(--color-text)]">{d.value}</span>
+              <span className="flex-shrink-0 font-bold tabular-nums text-[var(--color-text)]">{format(d.value)}</span>
             </span>
             <span className="mt-1.5 block h-2 rounded-full bg-[var(--color-bg)]">
               <span
@@ -217,5 +224,25 @@ export function GroupedColumns({ categories, series, values }: { categories: str
         </div>
       </div>
     </div>
+  )
+}
+
+/** Anillo de avance con el porcentaje al centro. */
+export function ProgressRing({ percent, label, size = 148 }: { percent: number | null; label: string; size?: number }) {
+  const r = 54
+  const circumference = 2 * Math.PI * r
+  const value = Math.max(0, Math.min(100, percent ?? 0))
+  return (
+    <svg width={size} height={size} viewBox="0 0 148 148" role="img" aria-label={`${label}: ${percent === null ? 'sin datos' : `${value}%`}`} className="flex-shrink-0">
+      <circle cx="74" cy="74" r={r} fill="none" stroke="var(--color-bg)" strokeWidth="16" />
+      {value > 0 && (
+        <circle
+          cx="74" cy="74" r={r} fill="none" stroke="var(--color-primary)" strokeWidth="16" strokeLinecap="round"
+          strokeDasharray={`${(value / 100) * circumference} ${circumference}`} transform="rotate(-90 74 74)"
+          style={{ transition: 'stroke-dasharray 700ms' }}
+        />
+      )}
+      <text x="74" y="82" textAnchor="middle" fontSize="30" fontWeight="800" fill="var(--color-text)">{percent === null ? '—' : `${value}%`}</text>
+    </svg>
   )
 }
