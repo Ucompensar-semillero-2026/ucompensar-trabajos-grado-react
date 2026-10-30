@@ -64,12 +64,13 @@ export function institutionalRolesFromBackendRole(backendRole: string): Institut
 const HOME_BY_ROLE: Array<[InstitutionalRole, string]> = [
   ['Administrador', '/dashboard'],
   ['Coordinador', '/dashboard'],
-  ['ComiteGrado', '/comites'],
+  // Comité y externos inician en su propio panel de /dashboard (ver DashboardRoute).
+  ['ComiteGrado', '/dashboard'],
   // Espacio de trabajo del tutor (ver TUTOR_NAV_GROUPS)
   ['Docente', '/tutor'],
   // "Inicio" del menú estudiantil (STUDENT_NAV_GROUPS) es /dashboard
   ['Estudiante', '/dashboard'],
-  ['Externo', '/externo'],
+  ['Externo', '/dashboard'],
   ['Consulta/Biblioteca', '/buscar'],
 ]
 

@@ -149,6 +149,9 @@ describe('menú y rol del tutor', () => {
     }
     expect(homePathFor(['Docente'])).toBe('/tutor')
     expect(homePathFor(['Coordinador', 'Docente'])).toBe('/dashboard')
+    expect(homePathFor(['ComiteGrado'])).toBe('/dashboard')
+    expect(homePathFor(['Externo'])).toBe('/dashboard')
+    expect(homePathFor(['Consulta/Biblioteca'])).toBe('/buscar')
   })
 })
 
