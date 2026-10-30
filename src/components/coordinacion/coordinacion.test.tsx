@@ -18,6 +18,8 @@ vi.mock('@/services/modalities.service', () => ({ modalitiesApi: { list: vi.fn()
 vi.mock('@/components/dashboard/DashboardSection', () => ({ DashboardSection: () => <p>tablero general</p> }))
 vi.mock('@/components/dashboard/StudentDashboard', () => ({ StudentDashboard: () => <p>panel del estudiante</p> }))
 vi.mock('@/components/tutor/TutorPages', () => ({ TutorPanel: () => <p>panel del tutor</p> }))
+vi.mock('@/components/dashboard/CommitteeDashboard', () => ({ CommitteeDashboard: () => <p>panel del comité</p> }))
+vi.mock('@/components/dashboard/ExternalDashboard', () => ({ ExternalDashboard: () => <p>panel externo</p> }))
 
 import { coordinationApi, portfolioApi } from '@/services/coordination.service'
 import { processesApi } from '@/services/processes.service'
@@ -186,7 +188,9 @@ describe('Dashboard de Coordinación', () => {
     const panels: Array<[User, string]> = [
       [student, 'panel del estudiante'],
       [teacher, 'panel del tutor'],
-      [{ ...teacher, id: 'x1', role: 'consejo_facultad', institutionalRoles: ['ComiteGrado'] }, 'tablero general'],
+      [{ ...teacher, id: 'x1', role: 'consejo_facultad', institutionalRoles: ['ComiteGrado'] }, 'panel del comité'],
+      [{ ...teacher, id: 'x2', role: 'empresa_cliente', institutionalRoles: ['Externo'] }, 'panel externo'],
+      [{ ...teacher, id: 'x3', role: 'consulta', institutionalRoles: ['Consulta/Biblioteca'] }, 'tablero general'],
     ]
     for (const [who, text] of panels) {
       useAppStore.setState({ currentUser: who })
