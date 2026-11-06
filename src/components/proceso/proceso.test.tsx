@@ -229,8 +229,9 @@ describe('Documentos y entregables', () => {
 
     const card = within(await screen.findByRole('heading', { name: 'Propuesta inicial' }).then((h) => h.closest('article') as HTMLElement))
     expect(card.getByText(/Usa el formato institucional/)).toBeInTheDocument()
-    expect(card.getByRole('link', { name: /Descargar plantilla/ })).toHaveAttribute('href', 'https://files.example/formato.pdf?sig=9')
-    expect(card.getByRole('link', { name: /Descargar plantilla/ })).toHaveAttribute('rel', 'noopener noreferrer')
+    // La plantilla se ve y se descarga por el backend (VisorDocumento), no con la URL firmada.
+    expect(card.getByRole('button', { name: /Descargar plantilla: formato\.pdf/ })).toBeInTheDocument()
+    expect(card.getByRole('button', { name: 'Ver formato.pdf' })).toBeInTheDocument()
     expect(card.getByRole('button', { name: 'Subir documento' })).toBeEnabled()
     expect(card.getByText('Disponible para entregar')).toBeInTheDocument()
     expect(card.getByText('Obligatorio')).toBeInTheDocument()
@@ -270,7 +271,7 @@ describe('Documentos y entregables', () => {
     expect(card.queryByText('Aprobado')).not.toBeInTheDocument()
     expect(card.getByText('Entrega registrada. Quedó en revisión por tu tutor.')).toBeInTheDocument()
     expect(card.getByRole('button', { name: 'Reemplazar entrega' })).toBeInTheDocument()
-    expect(card.getByRole('link', { name: /Descargar mi entrega/ })).toHaveAttribute('href', 'https://files.example/propuesta.pdf?sig=1')
+    expect(card.getByRole('button', { name: /Descargar mi entrega/ })).toBeInTheDocument()
     // Subir un archivo no suma al avance: solo cuenta lo aprobado por el tutor.
     expect(screen.getByText(/entregables obligatorios aprobados/).textContent).toMatch(/^0\s*de\s*1/)
   })

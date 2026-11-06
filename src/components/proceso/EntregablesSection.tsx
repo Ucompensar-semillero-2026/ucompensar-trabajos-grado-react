@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, Download, FileUp, FolderOpen, History, MessageSquareText } from 'lucide-react'
+import { CalendarClock, FileUp, FolderOpen, History, MessageSquareText } from 'lucide-react'
 import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
-import { ApiError, resolveFileUrl } from '@/services/http'
+import { ApiError } from '@/services/http'
+import { filePaths } from '@/services/files.service'
+import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
 import {
   DEFAULT_ACCEPTED_EXTENSIONS,
   workPlanApi,
@@ -116,10 +118,16 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
       </p>
 
       {d.template_download_url && (
-        <a href={resolveFileUrl(d.template_download_url)} target="_blank" rel="noopener noreferrer" className={downloadLinkClass(true)}>
-          <Download size={15} aria-hidden /> Descargar plantilla
-          {d.template_file_name && <span className="font-normal text-[var(--color-text-muted)]">({d.template_file_name})</span>}
-        </a>
+        <p className="flex flex-wrap items-center gap-3 text-[13px] text-[var(--color-text)]">
+          <span>Plantilla{d.template_file_name && <span className="text-[var(--color-text-muted)]"> ({d.template_file_name})</span>}</span>
+          <ArchivoAcciones
+            file={{ path: filePaths.template(processId, d.public_id), fileName: d.template_file_name ?? 'plantilla' }}
+            title={`Plantilla · ${d.title}`}
+            downloadLabel="Descargar plantilla"
+            linkClassName={downloadLinkClass(true)}
+            missing={d.template_missing}
+          />
+        </p>
       )}
 
       {current && (
@@ -128,9 +136,16 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
             {current.file_name} <span className="font-normal text-[var(--color-text-muted)]">· versión {current.version}</span>
           </p>
           <p className="text-[12px] text-[var(--color-text-muted)]">Entregado {formatRelativeDate(current.submitted_at)}</p>
-          <a href={resolveFileUrl(current.download_url)} target="_blank" rel="noopener noreferrer" className={`${downloadLinkClass()} mt-1`}>
-            <Download size={14} aria-hidden /> Descargar mi entrega
-          </a>
+          <span className="mt-1 inline-flex">
+            <ArchivoAcciones
+              file={{ path: filePaths.submission(processId, current.public_id), fileName: current.file_name }}
+              title={d.title}
+              version={current.version}
+              downloadLabel="Descargar mi entrega"
+              linkClassName={downloadLinkClass()}
+              missing={current.file_missing}
+            />
+          </span>
         </div>
       )}
 
@@ -220,9 +235,13 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
                 </span>
                 <span className="flex items-center gap-3">
                   <DeliverableStatusBadge status={s.status} />
-                  <a href={resolveFileUrl(s.download_url)} target="_blank" rel="noopener noreferrer" className={downloadLinkClass()}>
-                    Descargar
-                  </a>
+                  <ArchivoAcciones
+                    file={{ path: filePaths.submission(processId, s.public_id), fileName: s.file_name }}
+                    title={d.title}
+                    version={s.version}
+                    linkClassName={downloadLinkClass()}
+                    missing={s.file_missing}
+                  />
                 </span>
               </li>
             ))

@@ -29,6 +29,7 @@ export interface SubmissionOut {
   submitted_by: PersonOut
   submitted_at: string
   download_url: string
+  file_missing?: boolean
   reviews: ReviewOut[]
 }
 
@@ -46,6 +47,7 @@ export interface DeliverableOut {
   accepted_extensions: string[] | null
   template_file_name: string | null
   template_download_url: string | null
+  template_missing?: boolean
   status: DeliverableStatus
   is_overdue: boolean
   can_submit: boolean

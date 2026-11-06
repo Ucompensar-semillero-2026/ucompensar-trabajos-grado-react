@@ -6,13 +6,7 @@ import { useAppStore } from '@/stores/app.store'
 // In development, use Vite's same-origin /api proxy to avoid browser CORS
 // restrictions. Deployments can provide VITE_API_URL pointing to the API base.
 const API_URL = (import.meta.env.VITE_API_URL?.trim() || '/api').replace(/\/+$/, '')
-const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
-
-// El backend devuelve rutas relativas para archivos (ej. /local-storage/...)
-// -- hay que anteponerles el origen para que el navegador los pueda abrir.
-export function resolveFileUrl(path: string): string {
-  return path.startsWith('http') ? path : `${API_ORIGIN}${path}`
-}
+// Los archivos ya no se abren con URLs firmadas: los pide files.service con la sesión.
 
 export class ApiError extends Error {
   status: number
@@ -81,7 +75,8 @@ function hasBearer(headers: HeadersInit | undefined): boolean {
   return new Headers(headers).has('Authorization')
 }
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+/** Envía con la sesión; si el access_token venció (401), lo renueva y repite UNA vez. */
+async function sendAuthorized(path: string, options: RequestInit): Promise<Response> {
   let res: Response
   try {
     res = await send(path, options)
@@ -103,6 +98,11 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const detail = typeof body?.detail === 'string' ? body.detail : 'Error de conexión con el servidor'
     throw new ApiError(res.status, detail)
   }
+  return res
+}
+
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await sendAuthorized(path, options)
 
   // 204 (ej. /auth/logout) no trae body -- res.json() reventaría con
   // "Unexpected end of JSON input" si se llama sobre una respuesta vacía.
@@ -111,4 +111,9 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   }
 
   return res.json() as Promise<T>
+}
+
+/** Igual que request(), pero devuelve la respuesta sin leer (archivos: cabeceras y cuerpo binario). */
+export function requestRaw(path: string, options: RequestInit = {}): Promise<Response> {
+  return sendAuthorized(path, options)
 }

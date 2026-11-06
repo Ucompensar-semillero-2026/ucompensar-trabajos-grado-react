@@ -332,7 +332,7 @@ describe('Expediente del proyecto', () => {
     vi.mocked(workPlanApi.review).mockResolvedValue(submission({ status: 'aprobado' }) as never)
     renderExpediente('/tutor/proyectos/p1?tab=documentos')
 
-    expect(await screen.findByRole('link', { name: /Descargar entrega/ })).toHaveAttribute('href', 'https://files.example/propuesta.pdf?sig=1')
+    expect(await screen.findByRole('button', { name: /Descargar entrega/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Aprobar entrega' }))
 
     expect(workPlanApi.review).toHaveBeenCalledWith('token', 'p1', 'sub1', 'aprobado', '')

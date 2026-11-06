@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, FileCheck2, Send } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
+import { filePaths } from '@/services/files.service'
 import { TeamPanel } from '@/components/tutor/TeamPanel'
 import { ApiError } from '@/services/http'
 import { documentsApi, type ChecklistItemOut, type ProcessDocumentOut } from '@/services/documents.service'
@@ -259,6 +260,7 @@ export function TrazabilidadSection() {
     </section>}
 
     {tab === 'docs' && <TabDocumentos
+      processId={process.public_id}
       checklist={checklist}
       documents={documents}
       workPlanDocuments={workPlanDocuments}
@@ -275,7 +277,7 @@ export function TrazabilidadSection() {
         setActiveViewerDoc({
           public_id: document.public_id,
           file_name: document.file_name,
-          download_url: document.download_url,
+          file_path: filePaths.document(document.public_id),
           studentName: process.student.full_name,
           documentType: document.document_type.name,
           version: document.version,
@@ -287,7 +289,7 @@ export function TrazabilidadSection() {
         setActiveViewerDoc({
           public_id: submission.public_id,
           file_name: submission.file_name,
-          download_url: submission.download_url,
+          file_path: filePaths.submission(process.public_id, submission.public_id),
           studentName: submission.submitted_by.full_name,
           documentType: deliverableTitle,
           version: submission.version,

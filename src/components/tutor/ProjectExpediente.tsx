@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Download, FileUp, GitBranch } from 'lucide-react'
+import { ArrowLeft, FileUp, GitBranch } from 'lucide-react'
 import { Badge, Button, Card } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
-import { ApiError, resolveFileUrl } from '@/services/http'
+import { ApiError } from '@/services/http'
+import { filePaths } from '@/services/files.service'
+import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
 import { processesApi, type ProcessHistoryOut, type ProcessOut, type TeamMemberOut } from '@/services/processes.service'
 import { workPlanApi, type DeliverableOut, type PlanEventOut, type SubmissionOut, type WorkPlanOut } from '@/services/workplan.service'
 import { formatRelativeDate } from '@/utils/format'
@@ -139,9 +141,15 @@ function DeliverableReviewCard({ deliverable: d, processId, stageName, canManage
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px]">
         {d.template_download_url ? (
-          <a href={resolveFileUrl(d.template_download_url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-[#0876B9] underline underline-offset-4">
-            <Download size={14} aria-hidden /> Plantilla: {d.template_file_name}
-          </a>
+          <span className="inline-flex flex-wrap items-center gap-3">
+            <span className="text-[var(--color-text)]">Plantilla: {d.template_file_name}</span>
+            <ArchivoAcciones
+              file={{ path: filePaths.template(processId, d.public_id), fileName: d.template_file_name ?? 'plantilla' }}
+              title={`Plantilla · ${d.title}`}
+              downloadLabel="Descargar plantilla"
+              missing={d.template_missing}
+            />
+          </span>
         ) : (
           <span className="text-[var(--color-text-muted)]">Sin plantilla</span>
         )}
@@ -171,9 +179,15 @@ function DeliverableReviewCard({ deliverable: d, processId, stageName, canManage
         <div className="mt-3 rounded-xl bg-[var(--color-bg)] px-4 py-3 text-[13px]">
           <p className="font-semibold text-[var(--color-text)]">{current.file_name} <span className="font-normal text-[var(--color-text-muted)]">· versión {current.version} · {formatRelativeDate(current.submitted_at)}</span></p>
           {current.student_comment && <p className="mt-0.5 text-[var(--color-text-muted)]">Comentario del estudiante: {current.student_comment}</p>}
-          <a href={resolveFileUrl(current.download_url)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-semibold text-[#0876B9] underline underline-offset-4">
-            <Download size={14} aria-hidden /> Descargar entrega
-          </a>
+          <span className="mt-1 inline-flex">
+            <ArchivoAcciones
+              file={{ path: filePaths.submission(processId, current.public_id), fileName: current.file_name }}
+              title={d.title}
+              version={current.version}
+              downloadLabel="Descargar entrega"
+              missing={current.file_missing}
+            />
+          </span>
         </div>
       ) : (
         <p className="mt-3 text-[13px] text-[var(--color-text-muted)]">El estudiante aún no ha entregado este documento.</p>
@@ -215,7 +229,12 @@ function DeliverableReviewCard({ deliverable: d, processId, stageName, canManage
           {history === null ? <li className="text-[12px] text-[var(--color-text-muted)]">Cargando…</li> : history.map((s) => (
             <li key={s.public_id} className="text-[13px]">
               <p><strong>v{s.version}</strong> · {s.file_name} · {formatRelativeDate(s.submitted_at)} · <DeliverableStatusBadge status={s.status} />{' '}
-                <a href={resolveFileUrl(s.download_url)} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0876B9] underline underline-offset-4">Descargar</a>
+                <ArchivoAcciones
+                  file={{ path: filePaths.submission(processId, s.public_id), fileName: s.file_name }}
+                  title={d.title}
+                  version={s.version}
+                  missing={s.file_missing}
+                />
               </p>
               {s.reviews.map((r) => (
                 <p key={r.public_id} className="ml-3 text-[12px] text-[var(--color-text-muted)]">
