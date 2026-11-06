@@ -9,13 +9,14 @@ const ROLE_LABEL: Record<string, string> = { estudiante: 'Estudiante', tutor: 'T
 const ASSIGNER_ROLES = ['coordinador', 'administrativo']
 
 /** Equipo del proceso. Coordinación y administración pueden asignar o retirar al tutor (acción explícita). */
-export function TeamPanel({ processId }: { processId: string }) {
+export function TeamPanel({ processId, onTeamChanged }: { processId: string; onTeamChanged?: () => void }) {
   const accessToken = useAppStore((s) => s.accessToken)
   const role = useAppStore((s) => s.currentUser?.role ?? '')
   const canAssign = ASSIGNER_ROLES.includes(role)
   const [team, setTeam] = useState<TeamMemberOut[]>([])
   const [candidates, setCandidates] = useState<BackendUser[]>([])
   const [selected, setSelected] = useState('')
+  const [selectedEvaluator, setSelectedEvaluator] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +41,9 @@ export function TeamPanel({ processId }: { processId: string }) {
     try {
       await action(accessToken)
       setSelected('')
+      setSelectedEvaluator('')
       await load()
+      onTeamChanged?.()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo completar la acción')
     } finally {
@@ -49,7 +52,11 @@ export function TeamPanel({ processId }: { processId: string }) {
   }
 
   const tutors = team.filter((m) => m.process_role === 'tutor')
+  const activeTutor = tutors.find((member) => member.active)
+  const evaluators = team.filter((member) => member.process_role === 'evaluador')
+  const activeEvaluatorIds = new Set(evaluators.filter((member) => member.active).map((member) => member.user.public_id))
   const assignable = candidates.filter((c) => !tutors.some((t) => t.user.public_id === c.public_id))
+  const assignableEvaluators = candidates.filter((candidate) => !activeEvaluatorIds.has(candidate.public_id))
 
   return (
     <section aria-labelledby="team-title" className="card p-4">
@@ -76,9 +83,19 @@ export function TeamPanel({ processId }: { processId: string }) {
               <option key={c.public_id} value={c.public_id}>{c.full_name}</option>
             ))}
           </select>
-          <button type="button" disabled={!selected || busy} onClick={() => void act((t) => processesApi.addTeamMember(t, processId, selected, 'tutor'))} className="btn-primary px-4 py-2 text-[13px] font-bold disabled:opacity-50">
-            Asignar como tutor
+          <button type="button" disabled={!selected || busy} onClick={() => void act((t) => activeTutor ? processesApi.changeTutor(t, processId, selected) : processesApi.addTeamMember(t, processId, selected, 'tutor'))} className="btn-primary px-4 py-2 text-[13px] font-bold disabled:opacity-50">
+            {activeTutor ? 'Reasignar tutor' : 'Asignar como tutor'}
           </button>
+          <div className="basis-full border-t border-[var(--color-border)] pt-3">
+            <label htmlFor="evaluator-candidate" className="sr-only">Docente a asignar como jurado</label>
+            <select id="evaluator-candidate" value={selectedEvaluator} onChange={(e) => setSelectedEvaluator(e.target.value)} className="min-w-[240px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)]">
+              <option value="">Selecciona un docente para jurado…</option>
+              {assignableEvaluators.map((candidate) => <option key={candidate.public_id} value={candidate.public_id}>{candidate.full_name}</option>)}
+            </select>
+            <button type="button" disabled={!selectedEvaluator || busy} onClick={() => void act((t) => processesApi.addTeamMember(t, processId, selectedEvaluator, 'evaluador'))} className="ml-2 rounded-xl border border-[var(--color-border)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text)] disabled:opacity-50">
+              Asignar como jurado
+            </button>
+          </div>
         </div>
       )}
       {error && <p role="alert" className="mt-2 text-[13px] font-medium text-red-700">{error}</p>}

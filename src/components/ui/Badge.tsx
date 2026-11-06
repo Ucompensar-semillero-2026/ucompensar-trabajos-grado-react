@@ -63,7 +63,42 @@ const statusMap: Record<string, { label: string; variant: BadgeVariant }> = {
   'docs-faltantes':  { label: 'Docs faltantes',   variant: 'red'    },
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const entry = statusMap[status] ?? { label: status, variant: 'gray' as BadgeVariant }
-  return <Badge variant={entry.variant}>{entry.label}</Badge>
+const workflowStatusMap: Record<string, { label: string; variant: BadgeVariant }> = {
+  POSTULACION_INICIADA: { label: 'Postulación iniciada', variant: 'blue' },
+  DOCUMENTOS_PENDIENTES: { label: 'Documentos pendientes', variant: 'orange' },
+  AVAL_AREA_ESPECIALIZADA: { label: 'Pendiente de aval del área especializada', variant: 'orange' },
+  EN_REVISION_COMITE_FACULTAD: { label: 'En revisión por Comité de Facultad', variant: 'orange' },
+  PRESENTADO_COMITE_GENERAL: { label: 'Presentado ante Comité General', variant: 'blue' },
+  APROBADO_COMITE_GENERAL: { label: 'Aprobado por Comité General', variant: 'green' },
+  ANTEPROYECTO_EN_REVISION: { label: 'Anteproyecto en revisión', variant: 'orange' },
+  AVANCES_EN_REVISION: { label: 'Avances en curso', variant: 'orange' },
+  ACUERDO_PEDAGOGICO_FIRMADO: { label: 'Acuerdo pedagógico firmado', variant: 'blue' },
+  EN_EJECUCION: { label: 'En ejecución', variant: 'orange' },
+  ENTREGA_TRABAJO_ESCRITO: { label: 'Trabajo escrito entregado', variant: 'blue' },
+  JURADOS_ASIGNADOS: { label: 'Jurados asignados', variant: 'blue' },
+  CORRECCIONES_SOLICITADAS: { label: 'Correcciones solicitadas', variant: 'red' },
+  EN_SUSTENTACION: { label: 'En sustentación', variant: 'orange' },
+  CALIFICACION_REGISTRADA: { label: 'Calificación registrada', variant: 'green' },
+  HOMOLOGACION_SOLICITADA: { label: 'Homologación solicitada', variant: 'blue' },
+  HOMOLOGADO: { label: 'Homologado', variant: 'green' },
+  MENCION_SOLICITADA: { label: 'Mención honorífica solicitada', variant: 'blue' },
+  MENCION_CONFIRMADA: { label: 'Mención honorífica confirmada', variant: 'green' },
+  EN_REPOSITORIO: { label: 'En trámite de repositorio', variant: 'blue' },
+  PRORROGA_SOLICITADA: { label: 'Prórroga solicitada', variant: 'orange' },
+  CERRADO: { label: 'Cerrado', variant: 'green' },
+  REPROBADO: { label: 'Reprobado', variant: 'red' },
+  CANCELADO: { label: 'Cancelado', variant: 'red' },
+}
+
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
+  const workflowEntry = workflowStatusMap[status.toLocaleUpperCase()]
+  const inferredVariant: BadgeVariant = /CANCEL|RECHAZ|REPROB|DEVUEL|CORRECC/.test(status.toLocaleUpperCase())
+    ? 'red'
+    : /APROB|FINALIZ|HOMOLOG|CERRAD/.test(status.toLocaleUpperCase())
+      ? 'green'
+      : /REVISION|REVISI|AVAL|PENDIENTE|EJECUCION|ENTREGA|EN_/.test(status.toLocaleUpperCase())
+        ? 'orange'
+        : 'gray'
+  const entry = statusMap[status] ?? workflowEntry ?? { label: label ?? status, variant: inferredVariant }
+  return <Badge variant={workflowEntry?.variant ?? entry.variant}>{workflowEntry?.label ?? label ?? entry.label}</Badge>
 }

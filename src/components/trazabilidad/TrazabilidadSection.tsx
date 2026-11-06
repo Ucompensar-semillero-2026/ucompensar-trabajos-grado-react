@@ -1,79 +1,147 @@
-import { useEffect, useRef, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { CheckCircle2, XCircle, Clock, Upload, FolderOpen, Send, Eye } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { ArrowLeft, FileCheck2, Send } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
-import { useAppStore } from '@/stores/app.store'
-import { ApiError } from '@/services/http'
-import { documentsApi, type ChecklistItemOut } from '@/services/documents.service'
-import { processesApi, type ProcessOut, type ProcessHistoryOut } from '@/services/processes.service'
-import { workflowApi, type AllowedTransitionOut } from '@/services/workflow.service'
-import { formatRelativeDate } from '@/utils/format'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
 import { TeamPanel } from '@/components/tutor/TeamPanel'
+import { ApiError } from '@/services/http'
+import { documentsApi, type ChecklistItemOut, type ProcessDocumentOut } from '@/services/documents.service'
+import { processesApi, type ProcessHistoryOut, type ProcessOut, type TeamMemberOut } from '@/services/processes.service'
+import type { AllowedTransitionOut } from '@/services/workflow.service'
+import { cargarDetalleTrazabilidad, cargarEntregasPlanTrazabilidad, MOCK_TRAMITES, processToTramite, stepForStateCode, type EtapaPlanTrazabilidad } from '@/services/trazabilidad.service'
+import type { SubmissionOut } from '@/services/workplan.service'
+import { useAppStore } from '@/stores/app.store'
+import { ResumenTramite } from './ResumenTramite'
+import { TabDocumentos } from './TabDocumentos'
+import { TabComentarios } from './TabComentarios'
+import { TabReuniones } from './TabReuniones'
+import { Timeline } from './Timeline'
+import { TrazabilidadIndex } from './TrazabilidadIndex'
+import { DetalleDemoTrazabilidad } from './DetalleDemoTrazabilidad'
+import { usePermisos } from './usePermisos'
 
-const CHECKLIST_COLORS: Record<string, string> = {
-  aprobado: 'var(--color-teal)',
-  pendiente: 'var(--color-primary)',
-  rechazado: '#ef4444',
-  faltante: 'var(--color-text-dim)',
+type TraceTab = 'audit' | 'docs' | 'comments' | 'meetings'
+
+function stateActionLabel(targetCode: string, role: string, targetName: string) {
+  const code = targetCode.toUpperCase()
+  if (role === 'estudiante') {
+    if (code === 'EN_REVISION_COMITE_FACULTAD') return 'Radicar propuesta a Coordinación'
+    if (code === 'ANTEPROYECTO_EN_REVISION') return 'Enviar anteproyecto al tutor'
+    if (code === 'ENTREGA_TRABAJO_ESCRITO') return 'Entregar trabajo final'
+    return `Enviar a ${targetName}`
+  }
+  if (/RECHAZ|REPROB/.test(code)) return 'Rechazar trámite'
+  if (/DOCUMENTOS_PENDIENTES|DEVUEL|CORRECC/.test(code)) return 'Solicitar correcciones'
+  if ((role.startsWith('tutor_') || ['docente_curso', 'coordinador_movilidad', 'grupo_investigacion'].includes(role)) && code === 'AVANCES_EN_REVISION') return 'Aprobar anteproyecto y continuar'
+  if (/APROBADO_COMITE_GENERAL/.test(code)) return 'Aprobar propuesta'
+  if (code === 'JURADOS_ASIGNADOS') return 'Confirmar jurados y avanzar'
+  if (code === 'EN_SUSTENTACION') return 'Iniciar sustentación'
+  if (code === 'CALIFICACION_REGISTRADA') return 'Registrar calificación'
+  if (code === 'CERRADO') return 'Cerrar trámite'
+  return `Aprobar y avanzar a ${targetName}`
 }
 
 export function TrazabilidadSection() {
   const { processId } = useParams<{ processId: string }>()
-  const accessToken = useAppStore((s) => s.accessToken)
-  const currentUser = useAppStore((s) => s.currentUser)
+  const location = useLocation()
+  const accessToken = useAppStore((state) => state.accessToken)
+  const currentUser = useAppStore((state) => state.currentUser)
+  const { actor, canManage } = usePermisos()
 
   const [process, setProcess] = useState<ProcessOut | null>(null)
+  const [team, setTeam] = useState<TeamMemberOut[]>([])
   const [history, setHistory] = useState<ProcessHistoryOut[]>([])
   const [checklist, setChecklist] = useState<ChecklistItemOut[]>([])
+  const [documents, setDocuments] = useState<ProcessDocumentOut[]>([])
+  const [workPlanDocuments, setWorkPlanDocuments] = useState<EtapaPlanTrazabilidad[]>([])
+  const [workPlanDocumentsError, setWorkPlanDocumentsError] = useState<string | null>(null)
   const [transitions, setTransitions] = useState<AllowedTransitionOut[]>([])
-  const [tab, setTab] = useState<'docs' | 'audit'>('docs')
+  const [tab, setTab] = useState<TraceTab>('audit')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [isChangingState, setIsChangingState] = useState(false)
   const [uploadingType, setUploadingType] = useState<string | null>(null)
+  const [reviewingDocumentId, setReviewingDocumentId] = useState<string | null>(null)
   const [activeViewerDoc, setActiveViewerDoc] = useState<ViewerDocument | null>(null)
-  const [isViewerOpen, setIsViewerOpen] = useState(false)
-  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [canReviewActiveDocument, setCanReviewActiveDocument] = useState(false)
 
-  const load = () => {
-    if (!accessToken || !processId) return
+  const load = useCallback(async () => {
+    if (!processId) return
+    if (MOCK_TRAMITES.some((tramite) => tramite.id === processId)) return
+    if (!accessToken) {
+      setIsLoading(false)
+      setError('La sesión no está disponible. Vuelve a iniciar sesión para consultar el trámite.')
+      return
+    }
     setIsLoading(true)
     setError(null)
-    Promise.all([
-      processesApi.get(accessToken, processId),
-      processesApi.history(accessToken, processId),
-      documentsApi.checklist(accessToken, processId),
-    ])
-      .then(([proc, hist, check]) => {
-        setProcess(proc)
-        setHistory(hist)
-        setChecklist(check)
-        return workflowApi.transitions(accessToken, proc.modality.public_id)
-      })
-      .then(setTransitions)
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudo cargar el trámite'))
-      .finally(() => setIsLoading(false))
-  }
+    setAccessDenied(false)
+    setWorkPlanDocuments([])
+    setWorkPlanDocumentsError(null)
+    try {
+      const detail = await cargarDetalleTrazabilidad(accessToken, processId)
+      setProcess(detail.process)
+      setTeam(detail.team)
+      setHistory(detail.history)
+      setChecklist(detail.checklist)
+      setDocuments(detail.documents)
+      setTransitions(detail.transitions)
+      try {
+        setWorkPlanDocuments(await cargarEntregasPlanTrazabilidad(accessToken, processId))
+      } catch (err) {
+        setWorkPlanDocumentsError(err instanceof ApiError
+          ? `No se pudieron cargar las entregas del plan de trabajo: ${err.message}`
+          : 'No se pudieron cargar las entregas del plan de trabajo.')
+      }
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+        setAccessDenied(true)
+        setError(null)
+      } else {
+        setError(err instanceof ApiError ? err.message : 'No se pudo cargar el trámite.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [accessToken, processId])
 
-  useEffect(load, [accessToken, processId])
+  useEffect(() => { void load() }, [load])
 
-  const availableTransitions = process
-    ? transitions.filter(
-        (t) => t.source_state.public_id === process.state.public_id && t.authorized_role.name === currentUser?.role
-      )
-    : []
+  const tutor = team.find((member) => member.active && member.process_role === 'tutor')?.user ?? null
+  const evaluators = team.filter((member) => member.active && member.process_role === 'evaluador').map((member) => member.user)
+  const traceData = process ? processToTramite(process, tutor, evaluators) : null
+  const canManageProcess = traceData ? canManage(traceData) : false
+  const isStudentOwner = Boolean(process && currentUser && actor.rol === 'Estudiante' && process.student.public_id === currentUser.id)
+  const missingMandatoryDocument = checklist.find((item) => item.mandatory && item.checklist_status === 'faltante')
+  const pendingDocumentsCount = documents.filter((document) => document.status === 'pendiente').length
+  const workPlanSubmissionCount = workPlanDocuments.reduce((total, stage) =>
+    total + stage.deliverables.reduce((stageTotal, deliverable) => stageTotal + deliverable.submissions.length, 0), 0)
+  const availableTransitions = useMemo(() => process
+    ? transitions.filter((transition) => transition.source_state.public_id === process.state.public_id && transition.authorized_role.name === currentUser?.role)
+    : [], [currentUser?.role, process, transitions])
+  const canActOnState = canManageProcess || (isStudentOwner && availableTransitions.length > 0)
 
   const handleChangeState = async (targetStatePublicId: string) => {
     if (!accessToken || !processId) return
+    const target = availableTransitions.find((transition) => transition.target_state.public_id === targetStatePublicId)
     setIsChangingState(true)
     setActionError(null)
+    setActionSuccess(null)
     try {
       await processesApi.changeState(accessToken, processId, targetStatePublicId)
-      load()
+      const targetCode = target?.target_state.code.toUpperCase() ?? ''
+      const result = /RECHAZ/.test(targetCode) ? 'Trámite rechazado'
+        : /DEVUEL|CORRECC/.test(targetCode) ? 'Se solicitaron correcciones'
+          : actor.rol === 'Tutor' ? 'Aprobación del tutor registrada'
+            : actor.rol === 'Coordinador' ? 'Aprobación registrada por Coordinación'
+              : 'Trámite actualizado'
+      setActionSuccess(`${result} a «${target?.target_state.name ?? 'el siguiente estado'}».`)
+      await load()
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'No se pudo cambiar el estado')
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo cambiar el estado.')
     } finally {
       setIsChangingState(false)
     }
@@ -83,217 +151,161 @@ export function TrazabilidadSection() {
     if (!accessToken || !processId) return
     setUploadingType(documentTypePublicId)
     setActionError(null)
+    setActionSuccess(null)
     try {
       await documentsApi.upload(accessToken, processId, documentTypePublicId, file)
-      load()
+      await load()
+      setTab('docs')
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'No se pudo cargar el documento')
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo cargar el documento.')
     } finally {
       setUploadingType(null)
     }
   }
 
-  if (!processId) {
-    return (
-      <div className="max-w-4xl">
-        <p className="text-sm text-[var(--color-text-dim)]">
-          Selecciona un trámite desde <Link to="/tramites" className="text-[var(--color-primary)] font-semibold hover:underline">la lista de trámites</Link> para ver su trazabilidad.
-        </p>
-      </div>
-    )
+  const handleReviewDocument = async (document: { public_id?: string }, status: 'aprobado' | 'rechazado', comment?: string) => {
+    if (!accessToken || !document.public_id) return
+    setReviewingDocumentId(document.public_id)
+    setActionError(null)
+    setActionSuccess(null)
+    try {
+      const updated = await documentsApi.review(accessToken, document.public_id, status, comment)
+      setDocuments((current) => current.map((item) => item.public_id === updated.public_id ? updated : item))
+      setChecklist((current) => current.map((item) => item.document?.public_id === updated.public_id
+        ? { ...item, document: updated, checklist_status: updated.status }
+        : item))
+      setActiveViewerDoc((current) => current?.public_id === updated.public_id ? { ...current, status: updated.status } : current)
+      setActionSuccess(status === 'aprobado' ? 'Documento aprobado correctamente.' : 'Documento devuelto con observaciones.')
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'No se pudo revisar el documento.')
+    } finally {
+      setReviewingDocumentId(null)
+    }
   }
 
-  if (isLoading) {
-    return <p className="text-sm text-[var(--color-text-dim)]">Cargando trámite…</p>
-  }
+  if (!processId) return <TrazabilidadIndex />
+  if (MOCK_TRAMITES.some((tramite) => tramite.id === processId)) return <DetalleDemoTrazabilidad tramiteId={processId} />
 
-  if (error || !process) {
-    return (
-      <p className="text-[12.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 max-w-4xl">
-        {error ?? 'Trámite no encontrado'}
-      </p>
-    )
-  }
+  if (isLoading && !process) return <div role="status" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">Cargando el expediente de trazabilidad…</div>
 
-  return (
-    <div className="max-w-4xl space-y-5 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="section-title">{process.student.full_name} — {process.modality.name}</h1>
-          <div className="flex flex-wrap items-center gap-2 mt-1.5">
-            <span className="font-mono font-bold text-xs text-[var(--color-teal)]">{process.process_code}</span>
-            <span className="text-zinc-300">·</span>
-            <span className="text-xs text-zinc-500">{process.academic_semester}</span>
-            <StatusBadge status={process.state.code} />
-          </div>
-        </div>
-        {availableTransitions.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {availableTransitions.map((t) => (
-              <button
-                key={t.public_id}
-                onClick={() => handleChangeState(t.target_state.public_id)}
-                disabled={isChangingState}
-                className="btn-primary gap-2.5 font-bold text-sm px-4 py-2.5 disabled:opacity-50"
-              >
-                <Send size={16} />
-                {t.target_state.name}
-              </button>
-            ))}
-          </div>
-        )}
+  if (accessDenied) return <div className="max-w-3xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[var(--shadow-sm)]">
+    <h1 className="text-xl font-bold text-[var(--color-text)]">Acceso no autorizado</h1>
+    <p className="mt-2 text-sm text-[var(--color-text-muted)]">Este trámite no está disponible para tu usuario.</p>
+    <Link to="/trazabilidad" className="mt-5 inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">Volver a trazabilidad</Link>
+  </div>
+
+  if (error || !process || !traceData) return <div className="max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+    <p>{error ?? 'No se encontró el trámite.'}</p>
+    <button type="button" onClick={() => void load()} className="mt-3 font-semibold underline">Reintentar</button>
+  </div>
+
+  const backTo = location.state?.fromTutorExpediente
+    ? { to: `/tutor/proyectos/${processId}`, label: 'Volver al expediente del proyecto' }
+    : actor.rol === 'Estudiante'
+      ? { to: '/tramites', label: 'Volver a mis trámites' }
+      : { to: '/trazabilidad', label: 'Volver al listado de trazabilidad' }
+
+  return <div className="max-w-6xl space-y-5 animate-fadeIn">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <Link to={backTo.to} className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary)] hover:underline"><ArrowLeft size={14} aria-hidden="true" />{backTo.label}</Link>
+        <h1 className="section-title mt-3">{process.title?.trim() || process.process_code}</h1>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">{process.student.full_name} · {process.modality.name}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2"><span className="font-mono text-xs font-bold text-[var(--color-teal)]">{process.process_code}</span><span className="text-xs text-[var(--color-text-muted)]">Semestre {process.academic_semester}</span><StatusBadge status={process.state.code} label={process.state.name} /></div>
       </div>
-
-      {actionError && (
-        <p className="text-[12.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-          {actionError}
-        </p>
-      )}
-
-      {process.state.description && (
-        <div className="card p-4">
-          <p className="text-xs text-[var(--color-text-dim)]">{process.state.description}</p>
-        </div>
-      )}
-
-      <TeamPanel processId={process.public_id} />
-
-      {/* Tabs */}
-      <div className="flex border-b border-[var(--color-border)]">
-        {([
-          ['docs', `Documentos (${checklist.length})`],
-          ['audit', `Trazabilidad (${history.length})`],
-        ] as const).map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors"
-            style={{
-              borderColor: tab === k ? 'var(--color-primary)' : 'transparent',
-              color: tab === k ? 'var(--color-primary)' : 'var(--color-text-muted)',
-              background: 'transparent',
-            }}
-          >
-            {l}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-start gap-2">
+        {canManageProcess && pendingDocumentsCount > 0 && <button type="button" onClick={() => setTab('docs')} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-[13px] font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"><FileCheck2 size={16} aria-hidden="true" />Revisar documentos ({pendingDocumentsCount})</button>}
+        {canActOnState && availableTransitions.length > 0 && <div className="flex flex-wrap gap-2">
+          {availableTransitions.map((transition) => <button key={transition.public_id} type="button" onClick={() => void handleChangeState(transition.target_state.public_id)} disabled={isChangingState} className="btn-primary inline-flex min-h-10 items-center gap-2 px-4 py-2 text-sm font-bold disabled:opacity-50">
+            <Send size={15} aria-hidden="true" />{stateActionLabel(transition.target_state.code, currentUser?.role ?? '', transition.target_state.name)}
+          </button>)}
+        </div>}
       </div>
-
-      {/* Documents tab */}
-      {tab === 'docs' && (
-        <div className="space-y-3 animate-fadeIn">
-          {checklist.length === 0 && (
-            <p className="text-[12.5px] text-[var(--color-text-dim)]">
-              Esta modalidad no tiene documentos requeridos configurados.
-            </p>
-          )}
-
-          {checklist.map((item) => (
-            <div
-              key={item.document_type.public_id}
-              className="card flex items-center gap-3 px-4 py-3.5"
-              style={{ borderLeft: `3px solid ${CHECKLIST_COLORS[item.checklist_status]}` }}
-            >
-              <FolderOpen size={15} className="text-zinc-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[var(--color-text)] truncate">
-                  {item.document_type.name}
-                  {item.mandatory && <span className="ml-2 text-[9px] font-bold uppercase text-[var(--color-primary)]">Obligatorio</span>}
-                </p>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  {item.document
-                    ? `${item.document.file_name} · v${item.document.version} · ${formatRelativeDate(item.document.uploaded_at)}`
-                    : 'Sin cargar'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {item.document && (
-                  <button
-                    onClick={() => {
-                      if (!item.document) return
-                      setActiveViewerDoc({
-                        public_id: item.document.public_id,
-                        file_name: item.document.file_name,
-                        download_url: item.document.download_url,
-                        studentName: process.student.full_name,
-                        documentType: item.document_type.name,
-                        version: item.document.version,
-                        status: item.document.status,
-                      })
-                      setIsViewerOpen(true)
-                    }}
-                    className="p-1.5 rounded-lg transition-colors text-[var(--color-text-dim)] hover:text-[var(--color-primary)] hover:bg-[var(--color-bg)]"
-                    title="Ver documento en línea"
-                  >
-                    <Eye size={16} />
-                  </button>
-                )}
-                {item.checklist_status === 'aprobado' && <CheckCircle2 size={18} style={{ color: CHECKLIST_COLORS.aprobado }} />}
-                {item.checklist_status === 'rechazado' && <XCircle size={18} style={{ color: CHECKLIST_COLORS.rechazado }} />}
-                {item.checklist_status === 'pendiente' && <Clock size={18} style={{ color: CHECKLIST_COLORS.pendiente }} />}
-                <input
-                  ref={(el) => { fileInputs.current[item.document_type.public_id] = el }}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleUpload(item.document_type.public_id, file)
-                    e.target.value = ''
-                  }}
-                />
-                <button
-                  onClick={() => fileInputs.current[item.document_type.public_id]?.click()}
-                  disabled={uploadingType === item.document_type.public_id}
-                  className="p-1.5 rounded-lg transition-colors text-[var(--color-text-dim)] hover:text-[var(--color-primary)] disabled:opacity-50"
-                  title={item.document ? 'Cargar nueva versión' : 'Cargar documento'}
-                >
-                  <Upload size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Audit tab */}
-      {tab === 'audit' && (
-        <div className="card overflow-hidden animate-fadeIn">
-          {history.length === 0 ? (
-            <p className="px-5 py-4 text-[12.5px] text-[var(--color-text-dim)]">Sin movimientos registrados todavía.</p>
-          ) : (
-            history.map((entry, i) => (
-              <div
-                key={entry.public_id}
-                className="flex gap-3.5 px-5 py-4"
-                style={{ borderTop: i > 0 ? '1px solid var(--color-border)' : 'none' }}
-              >
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="w-2.5 h-2.5 rounded-full mt-1" style={{ background: 'var(--color-primary)' }} />
-                  {i < history.length - 1 && <div className="w-px flex-1 bg-[var(--color-border)] mt-1.5" />}
-                </div>
-                <div className="pb-2 min-w-0">
-                  <p className="text-sm font-semibold text-[var(--color-text)]">
-                    {entry.previous_state ? `${entry.previous_state.name} → ${entry.new_state.name}` : entry.new_state.name}
-                  </p>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {entry.user.full_name} · {formatRelativeDate(entry.event_date)}
-                    {entry.comment && ` · ${entry.comment}`}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Visor Modal */}
-      <DocumentViewerModal
-        isOpen={isViewerOpen}
-        onClose={() => setIsViewerOpen(false)}
-        document={activeViewerDoc}
-      />
     </div>
-  )
+
+    {isLoading && <p role="status" className="rounded-xl bg-[var(--color-bg)] px-4 py-2 text-xs text-[var(--color-text-muted)]">Actualizando el expediente…</p>}
+    {actionError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">{actionError}</p>}
+    {actionSuccess && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">{actionSuccess}</p>}
+
+    <ResumenTramite tramite={traceData} />
+
+    {isStudentOwner && <section className="rounded-2xl border border-[#FF6500]/30 bg-[#FF6500]/10 p-4 dark:bg-[#FF6500]/15">
+      <h2 className="text-sm font-bold text-[var(--color-text)]">¿Qué sigue?</h2>
+      <p className="mt-1 text-sm text-[var(--color-text-muted)]">{process.state.is_final_state
+        ? 'Tu trámite finalizó. Consulta el historial para ver el cierre del proceso.'
+        : missingMandatoryDocument
+          ? `Carga el documento obligatorio «${missingMandatoryDocument.document_type.name}» para continuar.`
+          : `Tu trámite está en «${process.state.name}». El siguiente paso depende de la revisión del equipo académico.`}</p>
+    </section>}
+
+    <TeamPanel processId={process.public_id} onTeamChanged={() => void load()} />
+
+    <div role="tablist" aria-label="Secciones de trazabilidad" className="flex gap-1 overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-sm">
+      {([
+        ['audit', `Historial (${history.length})`],
+        ['docs', `Documentos (${documents.length + workPlanSubmissionCount})`],
+        ['comments', 'Comentarios'],
+        ['meetings', 'Reuniones'],
+      ] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`min-h-10 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6500] ${tab === key ? 'bg-[#FF6500] text-white shadow-sm' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]'}`}>{label}</button>)}
+    </div>
+
+    {tab === 'audit' && <section className="card animate-fadeIn" aria-label="Historial del trámite">
+      <Timeline history={history} currentStep={stepForStateCode(process.state.code, process.state.is_final_state, Boolean(tutor))} hasTutor={Boolean(tutor)} canExport={actor.rol === 'Coordinador'} />
+    </section>}
+
+    {tab === 'docs' && <TabDocumentos
+      checklist={checklist}
+      documents={documents}
+      workPlanDocuments={workPlanDocuments}
+      workPlanDocumentsError={workPlanDocumentsError}
+      studentName={process.student.full_name}
+      canUpload={isStudentOwner}
+      canReview={canManageProcess && actor.rol === 'Coordinador'}
+      reviewingDocumentId={reviewingDocumentId}
+      uploadingType={uploadingType}
+      onUpload={(documentTypeId, file) => void handleUpload(documentTypeId, file)}
+      onApprove={(document) => void handleReviewDocument(document, 'aprobado')}
+      onPreview={(document) => {
+        setCanReviewActiveDocument(true)
+        setActiveViewerDoc({
+          public_id: document.public_id,
+          file_name: document.file_name,
+          download_url: document.download_url,
+          studentName: process.student.full_name,
+          documentType: document.document_type.name,
+          version: document.version,
+          status: document.status,
+        })
+      }}
+      onPreviewWorkPlan={(submission: SubmissionOut, deliverableTitle: string) => {
+        setCanReviewActiveDocument(false)
+        setActiveViewerDoc({
+          public_id: submission.public_id,
+          file_name: submission.file_name,
+          download_url: submission.download_url,
+          studentName: submission.submitted_by.full_name,
+          documentType: deliverableTitle,
+          version: submission.version,
+          status: submission.status === 'en_revision' ? 'pendiente'
+            : submission.status === 'requiere_correcciones' ? 'rechazado'
+              : 'aprobado',
+        })
+      }}
+    />}
+    {tab === 'comments' && <TabComentarios processId={process.public_id} actor={actor} canComment={canManageProcess || isStudentOwner} />}
+    {tab === 'meetings' && <TabReuniones processId={process.public_id} actor={actor} canManage={canManageProcess} />}
+
+    <DocumentViewerModal
+      isOpen={Boolean(activeViewerDoc)}
+      onClose={() => {
+        setActiveViewerDoc(null)
+        setCanReviewActiveDocument(false)
+      }}
+      document={activeViewerDoc}
+      canReview={canManageProcess && canReviewActiveDocument}
+      isReviewing={reviewingDocumentId === activeViewerDoc?.public_id}
+      onApprove={(document) => handleReviewDocument(document, 'aprobado')}
+      onReject={(document, comment) => handleReviewDocument(document, 'rechazado', comment)}
+    />
+  </div>
 }
