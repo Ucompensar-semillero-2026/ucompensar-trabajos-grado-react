@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Download, FileUp } from 'lucide-react'
+import { ArrowLeft, Download, FileUp, GitBranch } from 'lucide-react'
 import { Badge, Button, Card } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError, resolveFileUrl } from '@/services/http'
@@ -357,16 +357,23 @@ export function ProjectExpediente({ backTo = { to: '/tutor/proyectos', label: 'V
   if (status === 'loading' && !data) return <p className="px-2 py-8 text-[13px] text-[var(--color-text-muted)]">Cargando proyecto…</p>
   if (status === 'error' || !data) return <LoadError message={error} onRetry={() => void reload()} />
 
-  const isTutor = data.team.some((m) => m.process_role === 'tutor' && m.user.public_id === currentUser?.id)
+  const isTutor = data.team.some((m) => m.process_role === 'tutor' && m.active && m.user.public_id === currentUser?.id)
   // Solo el tutor ACTIVO modifica el plan y revisa entregas; Coordinación supervisa en modo consulta.
   // El backend decide de verdad (403/404); esto solo evita mostrar controles inútiles.
   const canManage = data.plan?.can_manage ?? isTutor
 
   return (
     <div className="flex flex-col gap-5">
-      <Link to={backTo.to} className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0876B9] underline underline-offset-4">
-        <ArrowLeft size={14} aria-hidden /> {backTo.label}
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link to={backTo.to} className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0876B9] underline underline-offset-4">
+          <ArrowLeft size={14} aria-hidden /> {backTo.label}
+        </Link>
+        {isTutor && <Link
+          to={`/trazabilidad/${processId}`}
+          state={{ fromTutorExpediente: true }}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#FF6500] px-4 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-[#e65c00] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6500]"
+        ><GitBranch size={16} aria-hidden="true" />Abrir trazabilidad</Link>}
+      </div>
 
       <div role="tablist" aria-label="Secciones del proyecto" className="flex flex-wrap gap-2">
         {TABS.map(([id, label]) => (

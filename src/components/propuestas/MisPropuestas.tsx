@@ -187,7 +187,7 @@ export function MisPropuestas() {
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[18px] font-bold text-[var(--color-text)]">Mis propuestas</h2>
-          <Link to="/proyectos-de-grado#proponer-idea" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">Presentar una idea</Link>
+          <Link to="/proyectos-de-grado#modalidades" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">Presentar una idea</Link>
         </div>
         {items.length === 0 ? (
           <EmptyState icon={Lightbulb} title="Aún no has presentado propuestas" description="Si tienes una idea para tu proyecto de grado, preséntala en el catálogo y Coordinación la evaluará." />

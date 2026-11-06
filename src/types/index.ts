@@ -8,6 +8,7 @@ export type NavSection =
   | 'propuestas'
   | 'asignacion'
   | 'portafolio'
+  | 'calendario'
   | 'tutor'
   | 'tutor-proyectos'
   | 'tutor-planes'

@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 interface MetricCardProps {
   label: string
@@ -6,10 +7,12 @@ interface MetricCardProps {
   sub: ReactNode
   subColor?: string
   icon?: ReactNode
+  /** Si se indica, la tarjeta completa lleva a la lista detallada de esa cifra. */
+  to?: string
 }
 
-export function MetricCard({ label, value, sub, subColor, icon }: MetricCardProps) {
-  return (
+export function MetricCard({ label, value, sub, subColor, icon, to }: MetricCardProps) {
+  const card = (
     <div className="card p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group relative overflow-hidden">
       <div className="flex justify-between items-start mb-2">
         <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-dim)] group-hover:text-[var(--color-primary)] transition-colors">
@@ -31,5 +34,12 @@ export function MetricCard({ label, value, sub, subColor, icon }: MetricCardProp
         {sub}
       </div>
     </div>
+  )
+  return to ? (
+    <Link to={to} className="block rounded-[var(--radius-lg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]">
+      {card}
+    </Link>
+  ) : (
+    card
   )
 }

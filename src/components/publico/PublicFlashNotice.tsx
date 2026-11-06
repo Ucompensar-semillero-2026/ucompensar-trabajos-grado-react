@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
+import { PROPOSALS_CATALOG_PATH } from './IdeaProposalSection'
 import { Button } from '@/components/ui'
 import { clearFlash, peekFlash, subscribeFlash, type PublicFlash } from '@/services/sessionFlash'
 
@@ -20,6 +22,7 @@ export function PublicFlashNotice() {
     const current = peekFlash()
     return current && current.kind !== 'manual_logout' ? current : null
   }
+  const navigate = useNavigate()
   const [flash, setFlash] = useState<Shown | null>(peek)
 
   useEffect(() => {
@@ -35,6 +38,11 @@ export function PublicFlashNotice() {
   const dismiss = () => {
     setFlash(null)
     window.scrollTo({ top: 0 })
+  }
+  // Destino explícito (no una redirección ambigua): siempre el catálogo de proyectos de grado.
+  const backToProjects = () => {
+    dismiss()
+    navigate(PROPOSALS_CATALOG_PATH)
   }
 
   return (
@@ -55,8 +63,8 @@ export function PublicFlashNotice() {
         ) : (
           <p className="mt-2 text-sm">Código <strong>{flash.code}</strong> · «{flash.title}». Quedó en estado «Pendiente de revisión».</p>
         )}
-        <Button type="button" className="mt-4 min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={dismiss}>
-          Volver al catálogo <ArrowRight size={16} aria-hidden="true" />
+        <Button type="button" className="mt-4 min-h-11 bg-[#FF6B35] px-4 text-white hover:bg-[#F4511E]" onClick={flash.kind === 'proposal' ? backToProjects : dismiss}>
+          {flash.kind === 'proposal' ? 'Volver a proyectos de grado' : 'Volver al catálogo'} <ArrowRight size={16} aria-hidden="true" />
         </Button>
       </section>
     </div>

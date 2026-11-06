@@ -17,6 +17,7 @@ const DEFAULT_META: Record<NavSection, SectionMeta> = {
   'mis-propuestas': { title: 'Mis propuestas', description: 'Sigue el estado de tus ideas, responde a Coordinación y confirma tu participación.' },
   propuestas: { title: 'Propuestas estudiantiles', description: 'Evalúa las ideas presentadas por los estudiantes, confirma el tutor y conviértelas en procesos.' },
   portafolio: { title: 'Portafolio de proyectos', description: 'Vista general de ofertas, propuestas y procesos de grado, con su estado y responsables.' },
+  calendario: { title: 'Calendario académico', description: 'Crea, publica y mantiene las fechas de los procesos de grado que consultan los estudiantes.' },
   asignacion: { title: 'Asignación de tutores', description: 'Asigna o cambia el tutor de cada proyecto de grado y supervisa su avance.' },
   proceso: { title: 'Mi proceso de grado', description: 'Plan de trabajo, fechas y avance de tu proyecto.', art: true },
   tramites: { title: 'Trámites', description: 'Consulta y sigue los trámites de trabajo de grado.', art: true },

@@ -53,8 +53,12 @@ describe('módulos de /auth/me', () => {
   it('el inicio sale de los módulos', () => {
     expect(homePathFor(makeUser(['coordinador', 'docente']).modules)).toBe('/dashboard')
     expect(homePathFor(makeUser(['docente']).modules)).toBe('/tutor')
-    expect(homePathFor(makeUser(['comite_grado']).modules)).toBe('/comites')
-    expect(homePathFor(makeUser(['externo']).modules)).toBe('/externo')
+    // Comité y externos inician en su propio panel de /dashboard (workspace-committee / workspace-external).
+    expect(homePathFor(makeUser(['comite_grado']).modules)).toBe('/dashboard')
+    expect(homePathFor(makeUser(['externo']).modules)).toBe('/dashboard')
+    // Sin esos espacios de trabajo, la sección sigue llevando a su página.
+    expect(homePathFor(['comites'])).toBe('/comites')
+    expect(homePathFor(['externo'])).toBe('/externo')
     expect(homePathFor(makeUser(['consulta']).modules)).toBe('/buscar')
     expect(homePathFor([])).toBe('/sin-acceso')
   })

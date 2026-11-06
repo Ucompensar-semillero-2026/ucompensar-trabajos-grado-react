@@ -122,7 +122,7 @@ describe('menú y rol del tutor', () => {
   it('uses a different menu for tutors and students, with the approved entries', () => {
     expect(TUTOR_NAV_GROUPS.map((g) => [g.label, g.items.map((i) => i.label)])).toEqual([
       ['Principal', ['Panel del tutor']],
-      ['Seguimiento académico', ['Mis proyectos asignados', 'Planes de trabajo', 'Plantillas y revisiones']],
+      ['Seguimiento académico', ['Mis proyectos asignados', 'Trazabilidad de mis proyectos', 'Planes de trabajo', 'Plantillas y revisiones']],
       ['Análisis y comunicación', ['Estadísticas e informes', 'Notificaciones', 'Ayuda y soporte']],
     ])
     expect(JSON.stringify(TUTOR_NAV_GROUPS)).not.toContain('Mi proceso de grado')
@@ -149,6 +149,10 @@ describe('menú y rol del tutor', () => {
     }
     expect(homePathFor(modulesFor(['docente']))).toBe('/tutor')
     expect(homePathFor(modulesFor(['coordinador', 'docente']))).toBe('/dashboard')
+    // Comité y externos inician en su propio panel de /dashboard.
+    expect(homePathFor(modulesFor(['comite_grado']))).toBe('/dashboard')
+    expect(homePathFor(modulesFor(['externo']))).toBe('/dashboard')
+    expect(homePathFor(modulesFor(['consulta']))).toBe('/buscar')
   })
 })
 
@@ -176,7 +180,8 @@ describe('Panel del tutor', () => {
     vi.mocked(tutorApi.overview).mockResolvedValue(overview([project()]))
     renderPage(<TutorPanel />)
 
-    const table = within(await screen.findByRole('table'))
+    const projectsCard = (await screen.findByText('Mis proyectos')).closest('.card') as HTMLElement
+    const table = within(within(projectsCard).getByRole('table'))
     expect(table.getByText('Ana Estudiante')).toBeInTheDocument()
     expect(table.getByText('Detección de fallas')).toBeInTheDocument()
     expect(table.getByText('Proyecto de investigación')).toBeInTheDocument()
@@ -184,17 +189,24 @@ describe('Panel del tutor', () => {
     expect(table.getByText('25% · 1/4')).toBeInTheDocument()
     expect(table.getByRole('link', { name: /Ver proyecto de Ana Estudiante/ })).toHaveAttribute('href', '/tutor/proyectos/p1')
     expect(screen.getByText('Proyectos asignados')).toBeInTheDocument()
-    expect(screen.getByText('25%')).toBeInTheDocument()
+    expect(within(screen.getByText('Promedio de avance').closest('.card') as HTMLElement).getByText('25%')).toBeInTheDocument()
+    expect(screen.getByText('Proyectos asignados').closest('a')).toHaveAttribute('href', '/tutor/proyectos')
+    expect(screen.getByText('Entregas por revisar', { selector: 'div' }).closest('a')).toHaveAttribute('href', '/tutor/revisiones')
+
+    const progress = screen.getByRole('region', { name: 'Avance por proyecto' })
+    expect(within(progress).getByRole('link', { name: /Ana Estudiante: 25%/ })).toHaveAttribute('href', '/tutor/proyectos/p1')
+    expect(screen.getByRole('region', { name: 'Estado de los entregables' })).toBeInTheDocument()
   })
 
   it('does not show a misleading average when there is no published plan', async () => {
     vi.mocked(tutorApi.overview).mockResolvedValue(overview([project({ plan_status: 'borrador', progress: null, current_stage: null })], { average_progress: null }))
     renderPage(<TutorPanel />)
 
-    await screen.findByRole('table')
+    const projectsCard = (await screen.findByText('Mis proyectos')).closest('.card') as HTMLElement
     expect(screen.getByText('Sin planes publicados con entregables obligatorios')).toBeInTheDocument()
-    expect(screen.getByText('Sin plan publicado')).toBeInTheDocument()
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(within(projectsCard).getByText('Sin plan publicado')).toBeInTheDocument()
+    expect(within(projectsCard).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.getByText('Ningún proyecto tiene todavía un plan publicado.')).toBeInTheDocument()
   })
 })
 

@@ -32,11 +32,7 @@ export function InstitutionalHeader() {
 
   return (
     <header className="relative z-20 bg-white text-[var(--color-text)] shadow-sm">
-      <div className="bg-[var(--color-secondary)] text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-end gap-5 px-5 py-2 text-xs sm:px-8">
-          <span>Institucional</span><span>Admisiones</span><span>Atención</span>
-        </div>
-      </div>
+      
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-4 sm:px-8">
         <Link to="/" aria-label="UCompensar, inicio"><Logo size="md" /></Link>
         <button className="rounded-lg p-2 md:hidden" aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((value) => !value)}>

@@ -38,6 +38,7 @@ import { InstitutionalHome } from '@/components/publico/InstitutionalHome'
 import { ProjectsCatalog } from '@/components/publico/ProjectsCatalog'
 import { ProjectDetail } from '@/components/publico/ProjectDetail'
 import { ModalityOpportunitiesPage } from '@/components/publico/ModalityOpportunitiesPage'
+import { CalendarioAcademico } from '@/components/coordinacion/CalendarioAcademico'
 
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
@@ -77,6 +78,8 @@ export default function App() {
         {/* Public institutional prototype */}
         <Route path="/" element={<InstitutionalHome />} />
         <Route path="/proyectos-de-grado" element={<ProjectsCatalog />} />
+        {/* Enlaces antiguos: el calendario vive dentro del catálogo, ya no es una página aparte */}
+        <Route path="/proyectos-de-grado/calendario" element={<Navigate to="/proyectos-de-grado#calendario" replace />} />
         <Route path="/proyectos-de-grado/modalidad/:modalitySlug" element={<ModalityOpportunitiesPage />} />
         <Route path="/proyectos-de-grado/:offerId" element={<ProjectDetail />} />
         {/* Public — Login */}
@@ -111,6 +114,7 @@ export default function App() {
           <Route path="/mis-propuestas" element={<RequireModule module="mis-propuestas"><MisPropuestas /></RequireModule>} />
           {/* Coordinación académica: el backend exige coordinador/administrativo en cada endpoint */}
           <Route path="/coordinacion/portafolio" element={<RequireModule module="portafolio"><PortafolioProyectos /></RequireModule>} />
+          <Route path="/coordinacion/calendario" element={<RequireModule module="calendario"><CalendarioAcademico /></RequireModule>} />
           <Route path="/coordinacion/propuestas" element={<RequireModule module="propuestas"><PropuestasEstudiantiles /></RequireModule>} />
           <Route path="/coordinacion/propuestas/:proposalId" element={<RequireModule module="propuestas"><PropuestaDetalle /></RequireModule>} />
           <Route path="/coordinacion/asignacion" element={<RequireModule module="asignacion"><AsignacionTutores /></RequireModule>} />

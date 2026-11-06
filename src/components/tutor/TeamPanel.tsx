@@ -18,6 +18,8 @@ interface TeamPanelProps {
   processId: string
   /** allowed_actions del trámite incluye manage_team (lo decide el backend). */
   canManage: boolean
+  /** Se llama después de asignar o retirar a alguien (la trazabilidad recarga el trámite). */
+  onTeamChanged?: () => void
 }
 
 /**
@@ -25,7 +27,7 @@ interface TeamPanelProps {
  * trámite ven quién lo integra; quien tiene `manage_team` además asigna y retira
  * tutor y evaluadores con las personas que el backend dice que son elegibles.
  */
-export function TeamPanel({ processId, canManage }: TeamPanelProps) {
+export function TeamPanel({ processId, canManage, onTeamChanged }: TeamPanelProps) {
   const accessToken = useAppStore((s) => s.accessToken)
   const [team, setTeam] = useState<TeamMemberOut[]>([])
   const [eligible, setEligible] = useState<Partial<Record<TeamRole, EligibleMembersOut>>>({})
@@ -58,6 +60,7 @@ export function TeamPanel({ processId, canManage }: TeamPanelProps) {
       await action(accessToken)
       setSelected({})
       await load()
+      onTeamChanged?.()
     } catch (err) {
       // Los 422 traen un mensaje claro del backend (p. ej. "El evaluador debe tener el rol institucional docente o externo").
       setError(err instanceof ApiError ? err.message : 'No se pudo completar la acción')

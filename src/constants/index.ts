@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Plus, Search, GitBranch,
-  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy, Flag, Users, ClipboardList, FileCheck2, UserCheck, Lightbulb, Layers,
+  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy, Flag, Users, ClipboardList, FileCheck2, UserCheck, Lightbulb, Layers, CalendarDays,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
 
@@ -19,6 +19,7 @@ export const NAV_ITEMS: Array<{
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, group: 'Principal', path: '/dashboard' },
   { id: 'proceso', label: 'Mi proceso de grado', Icon: Flag, group: 'Principal', path: '/mi-proceso' },
   { id: 'portafolio', label: 'Portafolio de proyectos', Icon: Layers, group: 'Gestión', path: '/coordinacion/portafolio' },
+  { id: 'calendario', label: 'Calendario académico', Icon: CalendarDays, group: 'Gestión', path: '/coordinacion/calendario' },
   { id: 'propuestas', label: 'Propuestas estudiantiles', Icon: Lightbulb, group: 'Gestión', path: '/coordinacion/propuestas' },
   { id: 'asignacion', label: 'Asignación de tutores', Icon: UserCheck, group: 'Gestión', path: '/coordinacion/asignacion' },
   { id: 'tramites', label: 'Mis trámites', Icon: FileText, group: 'Principal', path: '/tramites' },
@@ -84,6 +85,7 @@ export const TUTOR_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] }>
     label: 'Seguimiento académico',
     items: [
       { key: 'proyectos', label: 'Mis proyectos asignados', Icon: Users, path: '/tutor/proyectos' },
+      { key: 'trazabilidad', label: 'Trazabilidad de mis proyectos', Icon: GitBranch, path: '/trazabilidad' },
       { key: 'planes', label: 'Planes de trabajo', Icon: ClipboardList, path: '/tutor/planes' },
       { key: 'revisiones', label: 'Plantillas y revisiones', Icon: FileCheck2, path: '/tutor/revisiones' },
     ],

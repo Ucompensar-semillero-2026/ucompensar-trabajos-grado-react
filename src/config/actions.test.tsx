@@ -6,8 +6,16 @@ import { useAppStore } from '@/stores/app.store'
 import { makeUser } from '@/test/users'
 
 vi.mock('@/services/processes.service', () => ({
-  processesApi: { get: vi.fn(), list: vi.fn(), history: vi.fn(), availableTransitions: vi.fn(), changeState: vi.fn() },
+  processesApi: { get: vi.fn(), list: vi.fn(), history: vi.fn(), team: vi.fn(), availableTransitions: vi.fn(), changeState: vi.fn() },
 }))
+// Trazabilidad también carga las entregas del plan; sin plan publicado responde 404.
+vi.mock('@/services/workplan.service', async (importOriginal) => {
+  const { ApiError } = await import('@/services/http')
+  return {
+    ...(await importOriginal<typeof import('@/services/workplan.service')>()),
+    workPlanApi: { get: vi.fn().mockRejectedValue(new ApiError(404, 'Sin plan')) },
+  }
+})
 vi.mock('@/services/documents.service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/documents.service')>()),
   documentsApi: { checklist: vi.fn(), listForProcess: vi.fn(), upload: vi.fn(), review: vi.fn() },
@@ -46,6 +54,8 @@ const detail = (actions: string[], myRoles: string[] = []) => ({
 beforeEach(() => {
   useAppStore.getState().loginSuccess(makeUser(['coordinador']), 'token')
   vi.mocked(processesApi.history).mockResolvedValue([])
+  vi.mocked(processesApi.team).mockResolvedValue([])
+  vi.mocked(documentsApi.listForProcess).mockResolvedValue([])
   vi.mocked(documentsApi.checklist).mockResolvedValue([
     { document_type: { public_id: 'dt1', code: 'PLAN_TRABAJO', name: 'Plan de trabajo', description: null }, mandatory: true, note: null, document: null, checklist_status: 'faltante' },
   ] as never)
@@ -63,6 +73,12 @@ function renderTrazabilidad() {
       <Routes><Route path="/trazabilidad/:processId" element={<TrazabilidadSection />} /></Routes>
     </MemoryRouter>,
   )
+}
+
+/** La pantalla abre en Historial; el checklist está en la pestaña Documentos. */
+async function openDocumentsTab() {
+  await userEvent.setup().click(await screen.findByRole('tab', { name: /Documentos/ }))
+  expect(await screen.findByText('Plan de trabajo')).toBeInTheDocument()
 }
 
 describe('Trazabilidad: botones según el backend', () => {
@@ -84,23 +100,61 @@ describe('Trazabilidad: botones según el backend', () => {
     vi.mocked(processesApi.availableTransitions).mockResolvedValue([])
     renderTrazabilidad()
 
-    expect(await screen.findByText('Plan de trabajo')).toBeInTheDocument()
+    await openDocumentsTab()
     expect(screen.queryByRole('button', { name: /En ejecucion/ })).not.toBeInTheDocument()
   })
 
-  it('subir documentos y gestionar el equipo dependen de allowed_actions', async () => {
-    vi.mocked(processesApi.get).mockResolvedValue(detail(['upload_document', 'manage_team']) as never)
+  it('gestionar el equipo depende de manage_team', async () => {
+    vi.mocked(processesApi.get).mockResolvedValue(detail(['manage_team']) as never)
     vi.mocked(processesApi.availableTransitions).mockResolvedValue([])
     renderTrazabilidad()
-    expect(await screen.findByTitle('Cargar documento')).toBeInTheDocument()
-    expect(screen.getByText('equipo gestionable')).toBeInTheDocument()
+    expect(await screen.findByText('equipo gestionable')).toBeInTheDocument()
     cleanup()
 
     vi.mocked(processesApi.get).mockResolvedValue(detail([]) as never)
     renderTrazabilidad()
-    expect(await screen.findByText('Plan de trabajo')).toBeInTheDocument()
-    expect(screen.queryByTitle('Cargar documento')).not.toBeInTheDocument()
+    expect(await screen.findByText('equipo solo lectura')).toBeInTheDocument()
+  })
+
+  it('sube documentos el estudiante del trámite (my_process_roles) con upload_document', async () => {
+    // Estudiante del trámite con upload_document: ve el botón.
+    vi.mocked(processesApi.get).mockResolvedValue(detail(['upload_document'], ['estudiante']) as never)
+    vi.mocked(processesApi.availableTransitions).mockResolvedValue([])
+    renderTrazabilidad()
+    await openDocumentsTab()
+    expect(screen.getByRole('button', { name: /Cargar documento/ })).toBeInTheDocument()
+    cleanup()
+
+    // Coordinación (sin rol en el trámite) o sin la acción: no lo ve.
+    for (const [actions, roles] of [[['upload_document', 'manage_team'], []], [[], ['estudiante']]] as const) {
+      vi.mocked(processesApi.get).mockResolvedValue(detail([...actions], [...roles]) as never)
+      renderTrazabilidad()
+      await openDocumentsTab()
+      expect(screen.queryByRole('button', { name: /Cargar documento/ })).not.toBeInTheDocument()
+      cleanup()
+    }
+  })
+
+  it('revisar documentos depende de review_document (coordinación o el tutor del trámite)', async () => {
+    const pending = {
+      public_id: 'd1', file_name: 'plan.pdf', download_url: '#', version: 1, status: 'pendiente', uploaded_at: '2026-10-20T10:00:00',
+      document_type: { public_id: 'dt1', code: 'PLAN_TRABAJO', name: 'Plan de trabajo', description: null },
+    }
+    vi.mocked(documentsApi.listForProcess).mockResolvedValue([pending] as never)
+    vi.mocked(processesApi.availableTransitions).mockResolvedValue([])
+
+    // El tutor del trámite con review_document: ve "Revisar documentos" aunque no gestione el equipo.
+    vi.mocked(processesApi.get).mockResolvedValue(detail(['review_document'], ['tutor']) as never)
+    renderTrazabilidad()
+    expect(await screen.findByRole('button', { name: /Revisar documentos \(1\)/ })).toBeInTheDocument()
     expect(screen.getByText('equipo solo lectura')).toBeInTheDocument()
+    cleanup()
+
+    // Sin review_document (p. ej. un evaluador): no.
+    vi.mocked(processesApi.get).mockResolvedValue(detail([], ['evaluador']) as never)
+    renderTrazabilidad()
+    expect(await screen.findByText('equipo solo lectura')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Revisar documentos/ })).not.toBeInTheDocument()
   })
 })
 

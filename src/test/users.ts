@@ -20,6 +20,7 @@ const MODULES: Record<string, string[]> = {
   propuestas: COORDINATION,
   asignacion: COORDINATION,
   portafolio: COORDINATION,
+  calendario: COORDINATION,
   tutor: TUTOR_WORKSPACE,
   'tutor-proyectos': TUTOR_WORKSPACE,
   'tutor-planes': TUTOR_WORKSPACE,
@@ -40,7 +41,10 @@ export function modulesFor(roles: readonly string[]): ModuleKey[] {
   const modules = Object.entries(MODULES).filter(([, allowed]) => has(allowed)).map(([key]) => key)
   if (roles.includes('estudiante') && !has(['administrador', 'coordinador', 'comite_grado', 'docente'])) modules.push('workspace-student')
   if (roles.includes('docente') && !has(['coordinador', 'administrador', 'comite_grado', 'estudiante'])) modules.push('workspace-tutor')
-  if (has(COORDINATION) && !roles.includes('estudiante')) modules.push('workspace-coordination')
+  const coordination = has(COORDINATION) && !roles.includes('estudiante')
+  if (coordination) modules.push('workspace-coordination')
+  if (roles.includes('comite_grado') && !coordination) modules.push('workspace-committee')
+  if (roles.includes('externo') && !coordination) modules.push('workspace-external')
   return knownModules(modules)
 }
 
