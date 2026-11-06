@@ -20,15 +20,15 @@ import { workPlanApi } from '@/services/workplan.service'
 import { DocumentsRoute } from './DocumentsRoute'
 import { EntregablesSection } from './EntregablesSection'
 import { MiProcesoSection } from './MiProcesoSection'
+import { modulesFor } from '@/test/users'
 
 const student: User = {
   id: 'student-1',
   name: 'Ana Estudiante',
   initials: 'AE',
   email: 'ana@ucompensar.edu.co',
-  role: 'estudiante',
-  institutionalRoles: ['Estudiante'],
-  authMethod: 'sso',
+  roles: ['estudiante'],
+  modules: modulesFor(['estudiante']),
 }
 
 const proc = (id: string, title: string | null, studentId = student.id) => ({
@@ -367,7 +367,7 @@ describe('ruta /documentos', () => {
     expect(await screen.findByText('Aún no tienes entregables')).toBeInTheDocument()
     unmount()
 
-    useAppStore.setState({ currentUser: { ...student, role: 'coordinador', institutionalRoles: ['Coordinador'] } })
+    useAppStore.setState({ currentUser: { ...student, roles: ['coordinador'], modules: modulesFor(['coordinador']) } })
     renderAt(<DocumentsRoute />)
     expect(screen.getByText('repositorio de revisión')).toBeInTheDocument()
   })

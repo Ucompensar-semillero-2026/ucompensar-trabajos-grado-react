@@ -15,6 +15,12 @@ export interface ProcessOut {
   observations?: string | null
 }
 
+/** GET /processes/{id}: el trámite y lo que quien consulta puede hacer en él (contrato 6.1). */
+export interface ProcessDetailOut extends ProcessOut {
+  my_process_roles: string[]
+  allowed_actions: string[]
+}
+
 export interface ProcessHistoryOut {
   public_id: string
   previous_state: PossibleStateOut | null
@@ -33,8 +39,24 @@ export interface TeamMemberOut {
   public_id: string
   user: BackendUser
   process_role: string
+  /** Nombre del rol en la modalidad (ej. "Tutor de semillero"). */
+  role_label?: string | null
   assigned_at: string
+  /** Solo llega si quien consulta puede gestionar el equipo (manage_team). */
+  assigned_by?: BackendUser | null
+  unassigned_at?: string | null
   active: boolean
+}
+
+export type TeamRole = 'tutor' | 'evaluador'
+
+/** GET /processes/{id}/eligible-members?role=...: personas asignables y cupo de la modalidad. */
+export interface EligibleMembersOut {
+  role: TeamRole
+  role_label: string
+  max_count: number
+  assigned_count: number
+  users: BackendUser[]
 }
 
 export const processesApi = {
@@ -68,7 +90,15 @@ export const processesApi = {
     request<ProcessOut[]>('/processes', { headers: authHeaders(accessToken) }),
 
   get: (accessToken: string, processPublicId: string) =>
-    request<ProcessOut>(`/processes/${processPublicId}`, { headers: authHeaders(accessToken) }),
+    request<ProcessDetailOut>(`/processes/${processPublicId}`, { headers: authHeaders(accessToken) }),
+
+  /** Estados a los que quien consulta puede mover el trámite ahora (mismas reglas que PUT /state). */
+  availableTransitions: (accessToken: string, processPublicId: string) =>
+    request<PossibleStateOut[]>(`/processes/${processPublicId}/available-transitions`, { headers: authHeaders(accessToken) }),
+
+  /** Solo coordinación: quiénes se pueden asignar con ese rol y el cupo de la modalidad. */
+  eligibleMembers: (accessToken: string, processPublicId: string, role: TeamRole) =>
+    request<EligibleMembersOut>(`/processes/${processPublicId}/eligible-members?role=${role}`, { headers: authHeaders(accessToken) }),
 
   history: (accessToken: string, processPublicId: string) =>
     request<ProcessHistoryOut[]>(`/processes/${processPublicId}/history`, {

@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import type { PublicFlash } from '@/services/sessionFlash'
 import { MODALITY_LABELS, PROPOSAL_LIMITS, proposalsApi, type ProposalOut, type SuggestedModality } from '@/services/proposals.service'
+import { hasModule } from '@/config/access'
 
 export const NOT_STUDENT_MESSAGE = 'Solo las cuentas con rol Estudiante pueden presentar propuestas'
 export const PROPOSALS_CATALOG_PATH = '/proyectos-de-grado'
@@ -180,7 +181,8 @@ export function IdeaProposalSection({ modality, returnPath = PROPOSALS_CATALOG_P
   const navigate = useNavigate()
   const accessToken = useAppStore((s) => s.accessToken)
   const user = useAppStore((s) => s.currentUser)
-  const isStudent = user?.role === 'estudiante'
+  // Presentar propuestas: módulo de estudiante que da el backend (GET /auth/me).
+  const isStudent = hasModule(user, 'mis-propuestas')
   const [draft, setDraft] = useState<Draft>(() => {
     const saved = readDraft()
     return modality ? { ...saved, modality } : saved

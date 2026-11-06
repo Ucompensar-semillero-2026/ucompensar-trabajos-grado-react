@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
-import { MODULE_ROLES } from '@/config/access'
+import { makeUser, modulesFor } from '@/test/users'
 import { NAV_ITEMS } from '@/constants'
 import type { AdminCalendarEvent, CalendarEvent, CalendarFacets } from '@/services/calendar.service'
 
@@ -196,7 +196,7 @@ describe('formato de fechas (hora de Bogotá)', () => {
 })
 
 describe('administración del calendario', () => {
-  const coordinator = { id: 'c1', name: 'Diana', initials: 'D', email: 'd@u.co', role: 'coordinador', institutionalRoles: ['Coordinador'], authMethod: 'sso' } as never
+  const coordinator = makeUser(['coordinador'], { id: 'c1', name: 'Diana', initials: 'D', email: 'd@u.co' })
   const adminEvent = (o: Partial<AdminCalendarEvent> = {}): AdminCalendarEvent => ({ ...event(), status: 'borrador', published_at: null, created_at: '2099-01-01T00:00:00', updated_at: null, created_by: 'Diana', updated_by: null, ...o })
 
   beforeEach(() => {
@@ -208,8 +208,10 @@ describe('administración del calendario', () => {
   })
 
   it('only Coordinación and Administración get the module and the menu entry', () => {
-    expect(MODULE_ROLES.calendario).toEqual(['Coordinador', 'Administrador'])
-    expect(MODULE_ROLES.calendario).not.toContain('Estudiante')
+    // El módulo lo manda el backend (permissions.MODULES['calendario'] = coordinación).
+    expect(modulesFor(['coordinador'])).toContain('calendario')
+    expect(modulesFor(['administrador'])).toContain('calendario')
+    for (const other of [['estudiante'], ['docente'], ['comite_grado'], ['externo']]) expect(modulesFor(other)).not.toContain('calendario')
     expect(NAV_ITEMS.find((item) => item.id === 'calendario')?.path).toBe('/coordinacion/calendario')
   })
 

@@ -14,10 +14,11 @@ import { portfolioApi } from '@/services/coordination.service'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { PortafolioProyectos } from './PortafolioProyectos'
 import { ProjectDetail, safePortfolioReturn } from '@/components/publico/ProjectDetail'
+import { modulesFor } from '@/test/users'
 
-const coordinator: User = { id: 'c1', name: 'Diana Coordinadora', initials: 'DC', email: 'c@ucompensar.edu.co', role: 'coordinador', institutionalRoles: ['Coordinador'], authMethod: 'sso' }
-const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', role: 'estudiante', institutionalRoles: ['Estudiante'], authMethod: 'sso' }
-const teacher: User = { id: 't1', name: 'Andres Docente', initials: 'AD', email: 't@ucompensar.edu.co', role: 'tutor_investigador', institutionalRoles: ['Docente'], authMethod: 'sso' }
+const coordinator: User = { id: 'c1', name: 'Diana Coordinadora', initials: 'DC', email: 'c@ucompensar.edu.co', roles: ['coordinador'], modules: modulesFor(['coordinador']) }
+const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', roles: ['estudiante'], modules: modulesFor(['estudiante']) }
+const teacher: User = { id: 't1', name: 'Andres Docente', initials: 'AD', email: 't@ucompensar.edu.co', roles: ['docente'], modules: modulesFor(['docente']) }
 
 const item = (o: Partial<PortfolioItem> = {}): PortfolioItem => ({
   kind: 'proceso', public_id: 'p1', code: 'PROYECTO_INV-2026-AAA', title: 'Detección de fallas', modality_code: 'PROYECTO_INV',

@@ -6,11 +6,13 @@ import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import { externalApi, type ExternalEntityOut, type ExternalApprovalOut } from '@/services/external.service'
 import { processesApi, type ProcessOut } from '@/services/processes.service'
+import { hasModule } from '@/config/access'
 
 export function ExternoSection() {
   const accessToken = useAppStore((s) => s.accessToken)
   const currentUser = useAppStore((s) => s.currentUser)
-  const isAdmin = currentUser?.role === 'administrativo'
+  // Crear entidades y registrar sus avales (backend: solo administración).
+  const isAdmin = hasModule(currentUser, 'externo-gestion')
 
   const [entities, setEntities] = useState<ExternalEntityOut[]>([])
   const [selected, setSelected] = useState<ExternalEntityOut | null>(null)

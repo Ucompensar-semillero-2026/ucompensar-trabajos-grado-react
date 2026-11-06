@@ -6,14 +6,15 @@ import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import { gradingApi, type GradeOut, type FinalGradeOut, type MentionType } from '@/services/grading.service'
 import { modalitiesApi, type EvaluationCriterionOut } from '@/services/modalities.service'
-import { processesApi, type ProcessOut } from '@/services/processes.service'
-
-const CAN_REGISTER_FINAL = ['coordinador', 'consejo_facultad', 'administrativo']
+import { processesApi, type ProcessDetailOut, type ProcessOut } from '@/services/processes.service'
+import { can } from '@/config/actions'
 
 export function CalificacionesSection() {
   const accessToken = useAppStore((s) => s.accessToken)
-  const currentUser = useAppStore((s) => s.currentUser)
-  const canRegisterFinal = currentUser ? CAN_REGISTER_FINAL.includes(currentUser.role) : false
+  // Qué puede hacer en el trámite elegido: allowed_actions del backend (contrato 6.1).
+  const [detail, setDetail] = useState<ProcessDetailOut | null>(null)
+  const canGrade = can(detail, 'grade')
+  const canRegisterFinal = can(detail, 'register_final_grade')
 
   const [processes, setProcesses] = useState<ProcessOut[]>([])
   const [processId, setProcessId] = useState('')
@@ -45,18 +46,21 @@ export function CalificacionesSection() {
     setFinalGrade(null)
     setCriteria([])
     setGrades([])
+    setDetail(null)
     if (!accessToken || !id) return
 
     const process = processes.find((p) => p.public_id === id)
     if (!process) return
 
     try {
-      const [modalityDetail, gradesData] = await Promise.all([
+      const [modalityDetail, gradesData, processDetail] = await Promise.all([
         modalitiesApi.get(accessToken, process.modality.public_id),
         gradingApi.listGrades(accessToken, id),
+        processesApi.get(accessToken, id),
       ])
       setCriteria(modalityDetail.criteria)
       setGrades(gradesData)
+      setDetail(processDetail)
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'No se pudieron cargar los criterios')
     }
@@ -139,7 +143,9 @@ export function CalificacionesSection() {
             <h3 className="text-[12px] font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-4">
               Registrar nota por criterio
             </h3>
-            {criteria.length === 0 ? (
+            {!canGrade ? (
+              <p className="text-[12px] text-[var(--color-text-dim)]">Solo el tutor o un evaluador asignado a este trámite puede registrar notas.</p>
+            ) : criteria.length === 0 ? (
               <p className="text-[12px] text-[var(--color-text-dim)]">Esta modalidad no tiene criterios de evaluación configurados.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_1fr_auto] gap-2 items-end mb-4">

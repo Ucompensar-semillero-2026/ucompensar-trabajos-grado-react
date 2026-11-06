@@ -1,93 +1,96 @@
-import type { NavSection, User } from '@/types'
-import { hasAnyRole, type InstitutionalRole } from '@/config/roles'
+import type { User } from '@/types'
+import { NO_ACCESS_PATH } from '@/config/roles'
 
-// Dos capas de acceso por sección, ambas usadas por el menú (Sidebar) y por
-// los guards de rutas (RequireRole / RequireSection):
+// Qué puede hacer cada persona lo decide SOLO el backend (docs/ROLES-DISENO.md,
+// regla 1 y contrato 6.1):
 //
-// 1. MODULE_ROLES -- rol INSTITUCIONAL (Entra ID): a qué módulos entra la
-//    persona. Sección ausente = cualquier usuario con al menos un rol.
-// 2. SECTION_ROLES -- rol de la BD que exige el endpoint del backend, para
-//    no mostrar un formulario que el backend va a rechazar al enviar.
+// - Módulos: GET /auth/me -> `modules` (secciones del menú, espacio de trabajo
+//   y gestión). Aquí no hay listas de roles: solo se pregunta si el módulo está.
+// - Acciones sobre un trámite: GET /processes/{id} -> `allowed_actions`
+//   (ver config/actions.ts) y `my_process_roles` (ver processRoleOf, abajo).
 //
-// El resto de secciones son de solo lectura y el backend ya filtra qué ve
-// cada quien (ej. un estudiante solo ve sus propios trámites).
-export const MODULE_ROLES: Partial<Record<NavSection, readonly InstitutionalRole[]>> = {
-  nuevo: ['Estudiante'],
-  proceso: ['Estudiante'],
-  'mis-propuestas': ['Estudiante'],
-  // Evaluación de propuestas estudiantiles: el backend exige coordinador/administrativo.
-  propuestas: ['Coordinador', 'Administrador'],
-  // Coordinación académica: asignar tutores y supervisar. El backend exige coordinador/administrativo.
-  asignacion: ['Coordinador', 'Administrador'],
-  // Portafolio general: el backend exige coordinador/administrativo en /api/coordination/portfolio.
-  portafolio: ['Coordinador', 'Administrador'],
-  // Calendario de procesos de grado: el backend exige coordinador/administrativo en /api/coordination/calendar.
-  calendario: ['Coordinador', 'Administrador'],
-  // Espacio del tutor: la ruta la abren Docente y Coordinador (que también puede tutorizar); el backend
-  // decide qué proyectos devuelve según la asignación real en process_team.
-  tutor: ['Docente', 'Coordinador'],
-  buscar: ['Administrador', 'Coordinador', 'ComiteGrado', 'Docente', 'Consulta/Biblioteca'],
-  comites: ['ComiteGrado', 'Coordinador', 'Administrador'],
-  administrativo: ['Administrador', 'Coordinador'],
-  externo: ['Externo', 'Coordinador', 'Administrador'],
-  calificaciones: ['Docente', 'Estudiante', 'Coordinador', 'ComiteGrado', 'Administrador'],
-  reportes: ['Administrador', 'Coordinador', 'ComiteGrado', 'Consulta/Biblioteca'],
+// Una clave que el frontend no conoce se ignora sin romper nada: el backend
+// puede agregar módulos antes de que exista la pantalla.
+
+export const KNOWN_MODULES = [
+  'dashboard',
+  'proceso',
+  'mis-propuestas',
+  'propuestas',
+  'asignacion',
+  'portafolio',
+  'calendario',
+  'tutor',
+  'tutor-proyectos',
+  'tutor-planes',
+  'tutor-revisiones',
+  'tutor-estadisticas',
+  'tramites',
+  'nuevo',
+  'buscar',
+  'trazabilidad',
+  'documentos',
+  'reportes',
+  'comites',
+  'administrativo',
+  'externo',
+  'calificaciones',
+  'notificaciones',
+  // Espacio de trabajo: qué menú e inicio ve la persona.
+  'workspace-student',
+  'workspace-tutor',
+  'workspace-coordination',
+  'workspace-committee',
+  'workspace-external',
+  // Gestión fuera de un trámite.
+  'administrativo-gestion',
+  'externo-gestion',
+] as const
+
+export type ModuleKey = (typeof KNOWN_MODULES)[number]
+
+const KNOWN = new Set<string>(KNOWN_MODULES)
+
+/** Módulos de /auth/me que el frontend conoce, sin repetidos (los demás se ignoran). */
+export function knownModules(modules: readonly string[] | undefined): ModuleKey[] {
+  return [...new Set((modules ?? []).filter((m): m is ModuleKey => KNOWN.has(m)))]
 }
 
-export const SECTION_ROLES: Partial<Record<NavSection, string[]>> = {
-  // POST /processes exige "estudiante" (app/domains/processes/router.py)
-  nuevo: ['estudiante'],
-  // GET/POST /committees exige "consejo_facultad" o "administrativo"
-  // (_RUN_SESSION_ROLES, app/domains/committees/router.py)
-  comites: ['consejo_facultad', 'administrativo'],
+export function hasModule(user: Pick<User, 'modules'> | null | undefined, module: ModuleKey): boolean {
+  return Boolean(user?.modules.includes(module))
 }
 
-// El menú estudiantil se elige por este rol (solo presentación; los permisos reales siguen en SECTION_ROLES y el backend).
-export function isStudentRole(role: string): boolean {
-  return role === 'estudiante'
+// Inicio de cada persona: el primer módulo de esta lista que tenga.
+// Comité y externos inician en su propio panel de /dashboard (ver DashboardRoute).
+const HOME_BY_MODULE: Array<[ModuleKey, string]> = [
+  ['workspace-coordination', '/dashboard'],
+  ['workspace-committee', '/dashboard'],
+  ['comites', '/comites'],
+  ['workspace-tutor', '/tutor'],
+  ['tutor', '/tutor'],
+  ['workspace-student', '/dashboard'],
+  ['workspace-external', '/dashboard'],
+  ['externo', '/externo'],
+  ['buscar', '/buscar'],
+  ['dashboard', '/dashboard'],
+]
+
+export function homePathFor(modules: readonly ModuleKey[]): string {
+  const match = HOME_BY_MODULE.find(([module]) => modules.includes(module))
+  return match ? match[1] : NO_ACCESS_PATH
 }
 
-// El menú del tutor es para el DOCENTE puro. Quien además es coordinador, comité, administrador o
-// estudiante conserva el menú de su rol principal. Ser docente NO asigna proyectos: eso es process_team.
-export function isTutorWorkspaceUser(user: Pick<User, 'institutionalRoles'>): boolean {
-  const roles = user.institutionalRoles
-  return roles.includes('Docente') && !roles.some((r) => ['Coordinador', 'Administrador', 'ComiteGrado', 'Estudiante'].includes(r))
+// ── Rol de la persona en UN trámite (GET /processes/{id} -> my_process_roles) ──
+// Los roles de trámite son 'estudiante', 'tutor' y 'evaluador'. Se nombran aquí
+// porque 'estudiante' también es un código institucional (regla de lint).
+
+export type ProcessRole = 'estudiante' | 'tutor' | 'evaluador'
+
+export function hasProcessRole(detail: { my_process_roles?: readonly string[] } | null | undefined, role: ProcessRole): boolean {
+  return Boolean(detail?.my_process_roles?.includes(role))
 }
 
-// Coordinación académica: quien tiene el rol institucional Coordinador o Administrador (y no es estudiante).
-export function isCoordinationUser(user: Pick<User, 'institutionalRoles'>): boolean {
-  const roles = user.institutionalRoles
-  return !roles.includes('Estudiante') && (roles.includes('Coordinador') || roles.includes('Administrador'))
-}
-
-// Comité de grado (y no coordinación, que tiene su propio panel).
-export function isCommitteeUser(user: Pick<User, 'institutionalRoles'>): boolean {
-  return user.institutionalRoles.includes('ComiteGrado') && !isCoordinationUser(user)
-}
-
-// Persona externa (empresa, comunidad, jurado externo): solo ve los trámites en los que participa.
-export function isExternalUser(user: Pick<User, 'institutionalRoles'>): boolean {
-  return user.institutionalRoles.includes('Externo') && !isCoordinationUser(user)
-}
-
-export function canAccessModule(section: NavSection, roles: InstitutionalRole[]): boolean {
-  const allowed = MODULE_ROLES[section]
-  return roles.length > 0 && (!allowed || hasAnyRole(roles, allowed))
-}
-
-export function canAccessSection(section: NavSection, role: string): boolean {
-  const allowed = SECTION_ROLES[section]
-  return !allowed || allowed.includes(role)
-}
-
-export function canSeeInMenu(section: NavSection, user: User): boolean {
-  return canAccessModule(section, user.institutionalRoles) && canAccessSection(section, user.role)
-}
-
-// Aprobar/rechazar un documento -- PUT /documents/{id}/review exige
-// require_role("coordinador", "administrativo") en el backend.
-const DOCUMENT_REVIEW_ROLES = ['coordinador', 'administrativo']
-
-export function canReviewDocuments(role: string): boolean {
-  return DOCUMENT_REVIEW_ROLES.includes(role)
+/** Autor o integrante estudiante de ESTE trámite. */
+export function isProcessStudent(detail: { my_process_roles?: readonly string[] } | null | undefined): boolean {
+  return hasProcessRole(detail, 'estudiante')
 }

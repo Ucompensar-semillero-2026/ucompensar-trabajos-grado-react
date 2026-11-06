@@ -38,8 +38,8 @@ export const documentsApi = {
       headers: authHeaders(accessToken),
     }),
 
-  listForProcess: (accessToken: string, processPublicId: string) =>
-    request<ProcessDocumentOut[]>(`/processes/${processPublicId}/documents`, {
+  listForProcess: (accessToken: string, processPublicId: string, includeHistory = false) =>
+    request<ProcessDocumentOut[]>(`/processes/${processPublicId}/documents${includeHistory ? '?include_history=true' : ''}`, {
       headers: authHeaders(accessToken),
     }),
 
@@ -55,9 +55,7 @@ export const documentsApi = {
     })
   },
 
-  // Restringido a coordinador/administrativo en el backend
-  // (require_role, ver app/domains/documents/router.py) -- la UI también
-  // oculta el botón para los demás roles, esto es la segunda capa.
+  // El backend autoriza al tutor activo asignado al trámite o a Coordinación/administración.
   review: (accessToken: string, documentPublicId: string, status: 'aprobado' | 'rechazado', comment?: string) =>
     request<ProcessDocumentOut>(`/documents/${documentPublicId}/review`, {
       method: 'PUT',

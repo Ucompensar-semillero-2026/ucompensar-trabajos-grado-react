@@ -85,6 +85,7 @@ export const TUTOR_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] }>
     label: 'Seguimiento académico',
     items: [
       { key: 'proyectos', label: 'Mis proyectos asignados', Icon: Users, path: '/tutor/proyectos' },
+      { key: 'trazabilidad', label: 'Trazabilidad de mis proyectos', Icon: GitBranch, path: '/trazabilidad' },
       { key: 'planes', label: 'Planes de trabajo', Icon: ClipboardList, path: '/tutor/planes' },
       { key: 'revisiones', label: 'Plantillas y revisiones', Icon: FileCheck2, path: '/tutor/revisiones' },
     ],

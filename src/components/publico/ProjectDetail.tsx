@@ -8,7 +8,7 @@ import { OpportunityDetailDialog } from './OpportunityDetailDialog'
 import { applicationsService } from '@/services/applications.service'
 import { modalityGuidance } from './modalityGuidance.data'
 import { useAppStore } from '@/stores/app.store'
-import { isCoordinationUser } from '@/config/access'
+import { hasModule } from '@/config/access'
 import { modalityRouteSlug, projectModalities, projectOffers } from './projectCatalog.data'
 
 export const PORTFOLIO_PATH = '/coordinacion/portafolio'
@@ -23,9 +23,9 @@ export function safePortfolioReturn(value: unknown): string {
 export function ProjectDetail() {
   const location = useLocation()
   const currentUser = useAppStore((s) => s.currentUser)
-  // Contexto de Coordinación: lo decide el origen de la navegación Y el rol real de la sesión (no el texto de la oferta).
+  // Contexto de Coordinación: lo decide el origen de la navegación Y los módulos reales de la sesión (no el texto de la oferta).
   const fromState = (location.state ?? {}) as { from?: string; returnTo?: string }
-  const portfolioContext = fromState.from === 'portafolio' && Boolean(currentUser) && isCoordinationUser(currentUser!)
+  const portfolioContext = fromState.from === 'portafolio' && hasModule(currentUser, 'workspace-coordination')
   const portfolioPath = safePortfolioReturn(fromState.returnTo)
   const { offerId } = useParams<{ offerId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()

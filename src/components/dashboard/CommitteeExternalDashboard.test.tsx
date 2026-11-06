@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
+import { modulesFor } from '@/test/users'
 import type { WorkPlanOut } from '@/services/workplan.service'
 
 vi.mock('@/services/processes.service', () => ({ processesApi: { list: vi.fn() } }))
@@ -22,8 +23,8 @@ import { workPlanApi } from '@/services/workplan.service'
 import { CommitteeDashboard } from './CommitteeDashboard'
 import { ExternalDashboard } from './ExternalDashboard'
 
-const committeeUser: User = { id: 'c1', name: 'Marta Comité', initials: 'MC', email: 'm@ucompensar.edu.co', role: 'consejo_facultad', institutionalRoles: ['ComiteGrado'], authMethod: 'sso' }
-const externalUser: User = { id: 'e1', name: 'Pedro Empresa', initials: 'PE', email: 'p@empresa.co', role: 'empresa_cliente', institutionalRoles: ['Externo'], authMethod: 'sso' }
+const committeeUser: User = { id: 'c1', name: 'Marta Comité', initials: 'MC', email: 'm@ucompensar.edu.co', roles: ['comite_grado'], modules: modulesFor(['comite_grado']) }
+const externalUser: User = { id: 'e1', name: 'Pedro Empresa', initials: 'PE', email: 'p@empresa.co', roles: ['externo'], modules: modulesFor(['externo']) }
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString()
 

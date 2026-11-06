@@ -26,15 +26,15 @@ vi.mock('@/config/msal', () => ({
 
 import { authApi } from '@/services/auth.service'
 import { clearMicrosoftSession, msalInstance } from '@/config/msal'
+import { modulesFor } from '@/test/users'
 
 const student: User = {
   id: 'student-public-id',
   name: 'Estudiante de Prueba',
   initials: 'EP',
   email: 'estudiante1@ucompensar.edu.co',
-  role: 'estudiante',
-  institutionalRoles: ['Estudiante'],
-  authMethod: 'sso',
+  roles: ['estudiante'],
+  modules: modulesFor(['estudiante']),
 }
 
 function wrapper({ children }: { children: ReactNode }) {

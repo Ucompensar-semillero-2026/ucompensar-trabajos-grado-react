@@ -1,4 +1,4 @@
-import type { InstitutionalRole } from '@/config/roles'
+import type { ModuleKey } from '@/config/access'
 
 // ─── Navigation ──────────────────────────────────────────────
 export type NavSection =
@@ -27,7 +27,6 @@ export type NavSection =
   | 'notificaciones'
 
 // ─── Auth ─────────────────────────────────────────────────────
-export type AuthMethod = 'sso' | 'credentials'
 
 export type AuthStep = {
   label: string
@@ -39,11 +38,10 @@ export interface User {
   name: string
   initials: string
   email: string
-  // Rol en la BD del backend (ej. "tutor_investigador")
-  role: string
-  // Roles institucionales de Entra ID (ver config/roles.ts)
-  institutionalRoles: InstitutionalRole[]
-  authMethod: AuthMethod
+  // Códigos institucionales de GET /auth/me (solo para mostrarlos; ver config/roles.ts).
+  roles: string[]
+  // Módulos de GET /auth/me: lo único que decide menú y rutas (ver config/access.ts).
+  modules: ModuleKey[]
 }
 
 // ─── Tramite ──────────────────────────────────────────────────

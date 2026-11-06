@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import type { User } from '@/types'
+import { modulesFor } from '@/test/users'
 import type { CalendarEvent } from '@/services/calendar.service'
 import type { DeliverableOut, WorkPlanOut } from '@/services/workplan.service'
 
@@ -19,7 +20,7 @@ import { workPlanApi } from '@/services/workplan.service'
 import { calendarApi } from '@/services/calendar.service'
 import { StudentDashboard } from './StudentDashboard'
 
-const student: User = { id: 'student-1', name: 'Ana Estudiante', initials: 'AE', email: 'ana@ucompensar.edu.co', role: 'estudiante', institutionalRoles: ['Estudiante'], authMethod: 'sso' }
+const student: User = { id: 'student-1', name: 'Ana Estudiante', initials: 'AE', email: 'ana@ucompensar.edu.co', roles: ['estudiante'], modules: modulesFor(['estudiante']) }
 
 const proc = {
   public_id: 'p1', process_code: 'CODE-p1', title: 'Detección de fallas', student: { public_id: student.id },

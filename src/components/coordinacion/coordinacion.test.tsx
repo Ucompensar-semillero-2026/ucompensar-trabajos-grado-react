@@ -28,10 +28,11 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { AsignacionTutores } from './AsignacionTutores'
 import { CoordinationDashboard } from './CoordinationDashboard'
 import { DashboardRoute } from './DashboardRoute'
+import { modulesFor } from '@/test/users'
 
-const coordinator: User = { id: 'coord-1', name: 'Diana Coordinadora', initials: 'DC', email: 'c@ucompensar.edu.co', role: 'coordinador', institutionalRoles: ['Coordinador'], authMethod: 'sso' }
-const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', role: 'estudiante', institutionalRoles: ['Estudiante'], authMethod: 'sso' }
-const teacher: User = { id: 't1', name: 'Andres Consultor', initials: 'AC', email: 't@ucompensar.edu.co', role: 'tutor_investigador', institutionalRoles: ['Docente'], authMethod: 'sso' }
+const coordinator: User = { id: 'coord-1', name: 'Diana Coordinadora', initials: 'DC', email: 'c@ucompensar.edu.co', roles: ['coordinador'], modules: modulesFor(['coordinador']) }
+const student: User = { id: 's1', name: 'Ana Estudiante', initials: 'AE', email: 'a@ucompensar.edu.co', roles: ['estudiante'], modules: modulesFor(['estudiante']) }
+const teacher: User = { id: 't1', name: 'Andres Consultor', initials: 'AC', email: 't@ucompensar.edu.co', roles: ['docente'], modules: modulesFor(['docente']) }
 
 const summary = (o: Partial<CoordinationSummary> = {}): CoordinationSummary => ({
   registered_processes: 5, pending_tutor: 2, with_tutor: 3, active_students: 4, pending_reviews: 6, delayed_projects: 1, tutors_available: 7,
@@ -188,9 +189,9 @@ describe('Dashboard de Coordinación', () => {
     const panels: Array<[User, string]> = [
       [student, 'panel del estudiante'],
       [teacher, 'panel del tutor'],
-      [{ ...teacher, id: 'x1', role: 'consejo_facultad', institutionalRoles: ['ComiteGrado'] }, 'panel del comité'],
-      [{ ...teacher, id: 'x2', role: 'empresa_cliente', institutionalRoles: ['Externo'] }, 'panel externo'],
-      [{ ...teacher, id: 'x3', role: 'consulta', institutionalRoles: ['Consulta/Biblioteca'] }, 'tablero general'],
+      [{ ...teacher, id: 'x1', roles: ['comite_grado'], modules: modulesFor(['comite_grado']) }, 'panel del comité'],
+      [{ ...teacher, id: 'x2', roles: ['externo'], modules: modulesFor(['externo']) }, 'panel externo'],
+      [{ ...teacher, id: 'x3', roles: ['consulta'], modules: modulesFor(['consulta']) }, 'tablero general'],
     ]
     for (const [who, text] of panels) {
       useAppStore.setState({ currentUser: who })
@@ -270,7 +271,7 @@ describe('Asignación de tutores', () => {
       expect(dialog.getByText('Detección de fallas')).toBeInTheDocument()
       expect(dialog.getByText(/PROYECTO_INV-2026-AAA · Ana Estudiante · Proyecto de investigación/)).toBeInTheDocument()
       expect(await dialog.findByText('Andres Consultor')).toBeInTheDocument()
-      expect(dialog.getByText('Tutor consultor')).toBeInTheDocument()
+      expect(dialog.getByText('u1@u.co')).toBeInTheDocument()
       expect(dialog.getByText('2 proyectos')).toBeInTheDocument()
       expect(dialog.getByText('0 proyectos')).toBeInTheDocument()
       expect(dialog.getByRole('button', { name: 'Confirmar asignación' })).toBeDisabled()
