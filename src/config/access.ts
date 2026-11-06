@@ -60,6 +60,16 @@ export function isCoordinationUser(user: Pick<User, 'institutionalRoles'>): bool
   return !roles.includes('Estudiante') && (roles.includes('Coordinador') || roles.includes('Administrador'))
 }
 
+// Comité de grado (y no coordinación, que tiene su propio panel).
+export function isCommitteeUser(user: Pick<User, 'institutionalRoles'>): boolean {
+  return user.institutionalRoles.includes('ComiteGrado') && !isCoordinationUser(user)
+}
+
+// Persona externa (empresa, comunidad, jurado externo): solo ve los trámites en los que participa.
+export function isExternalUser(user: Pick<User, 'institutionalRoles'>): boolean {
+  return user.institutionalRoles.includes('Externo') && !isCoordinationUser(user)
+}
+
 export function canAccessModule(section: NavSection, roles: InstitutionalRole[]): boolean {
   const allowed = MODULE_ROLES[section]
   return roles.length > 0 && (!allowed || hasAnyRole(roles, allowed))
