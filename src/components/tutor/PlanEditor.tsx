@@ -192,6 +192,7 @@ function DeliverableEditor({
   const [due, setDue] = useState(deliverable.due_date ?? '')
   const [dependsOn, setDependsOn] = useState(deliverable.depends_on_public_id ?? '')
   const [formats, setFormats] = useState<string[]>(deliverable.accepted_extensions ?? [])
+  const [escalate, setEscalate] = useState(deliverable.escalate_group)
 
   const save = async () => {
     const body: Partial<DeliverableInput> = {
@@ -203,6 +204,7 @@ function DeliverableEditor({
       due_date: due || null,
       depends_on_public_id: dependsOn || null,
       accepted_extensions: formats.length ? formats : null,
+      escalate_group: escalate,
     }
     if (await run((t) => workPlanApi.updateDeliverable(t, processId, deliverable.public_id, body))) setOpen(false)
   }
@@ -265,6 +267,10 @@ function DeliverableEditor({
             <Check label="Obligatorio" checked={mandatory} onChange={setMandatory} />
             <Check label="Aplica a este proyecto" checked={applicable} onChange={setApplicable} />
             <Check label="Activo" checked={active} onChange={setActive} />
+          </div>
+          <div>
+            <Check label="Escalar incumplimientos individuales a todo el grupo" checked={escalate} onChange={setEscalate} />
+            <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">Si uno de los integrantes no entrega esta actividad dentro de su plazo autorizado, el sistema generará una alerta crítica para todo el equipo.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" size="sm" disabled={busy || !title.trim()} onClick={() => void save()}>

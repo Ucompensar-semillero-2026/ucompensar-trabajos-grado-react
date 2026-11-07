@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { lockScroll } from '@/utils/scrollLock'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ModalDialog as Modal } from '@/components/ui/ModalDialog'
 import { CalendarDays, Eye, History, Pencil, Plus, Search } from 'lucide-react'
 import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
@@ -243,57 +242,6 @@ export function CalendarioAcademico() {
           onDone={(saved) => done(`Evento «${saved.title}»: ahora está ${STATUS_LABEL[saved.status].toLowerCase()}.`)} />
       )}
     </div>
-  )
-}
-
-/**
- * Diálogo del módulo. Se monta en `document.body` (portal): dentro del layout del dashboard un ancestro con transform,
- * overflow o animación se convierte en el contenedor de `position: fixed` y el modal quedaba recortado o desplazado
- * fuera de la pantalla. Estructura: encabezado fijo, contenido con desplazamiento propio (`min-h-0`) y acciones fijas.
- */
-function Modal({ title, onClose, children, footer, wide }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode; wide?: boolean }) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const unlockScroll = lockScroll() // el fondo no se desplaza; se restaura exactamente al cerrar
-    dialogRef.current?.focus({ preventScroll: true })
-    return () => {
-      unlockScroll()
-      previousFocus?.focus({ preventScroll: true })
-    }
-  }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') return onClose()
-      if (e.key !== 'Tab' || !dialogRef.current) return
-      // El foco no sale del modal mientras está abierto.
-      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'))
-        .filter((el) => el.getClientRects().length > 0)
-      if (focusable.length === 0) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#061F2D]/70 p-2 sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
-        className={`flex max-h-[96dvh] min-h-0 w-full flex-col outline-none overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-2xl sm:max-h-[90dvh] ${wide ? 'sm:w-[min(1100px,96vw)]' : 'sm:w-[min(36rem,96vw)]'}`}>
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3 sm:px-5">
-          <h2 className="font-display text-[18px] font-bold text-[var(--color-secondary)]">{title}</h2>
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
-        </header>
-        <div data-testid="modal-body" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
-        {footer && <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:px-5">{footer}</footer>}
-      </div>
-    </div>,
-    document.body,
   )
 }
 
