@@ -81,6 +81,86 @@ function hasBearer(headers: HeadersInit | undefined): boolean {
   return new Headers(headers).has('Authorization')
 }
 
+export interface UploadOptions {
+  method?: 'POST' | 'PUT'
+  token: string
+  body: FormData
+  /** Porcentaje 0–100 del envío del archivo. */
+  onProgress?: (percent: number) => void
+  signal?: AbortSignal
+}
+
+function xhrSend<T>(path: string, token: string, { method = 'POST', body, onProgress, signal }: UploadOptions): Promise<{ status: number; data: T | { detail?: unknown } | null }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(method, `${API_URL}${path}`)
+    xhr.withCredentials = true
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)) }
+    xhr.onload = () => {
+      let data = null
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null } catch { data = null }
+      resolve({ status: xhr.status, data })
+    }
+    xhr.onerror = () => reject(new ApiError(0, 'Se perdió la conexión durante la carga. El archivo no se guardó.'))
+    xhr.onabort = () => reject(new ApiError(0, 'Carga cancelada. El archivo no se guardó.'))
+    if (signal) {
+      if (signal.aborted) return xhr.abort()
+      signal.addEventListener('abort', () => xhr.abort(), { once: true })
+    }
+    xhr.send(body)
+  })
+}
+
+/**
+ * Subida de archivos con progreso (fetch no informa el avance del envío). Misma política que `request`: credenciales,
+ * renovación del token una vez ante un 401 y errores del backend como `ApiError`.
+ */
+export async function uploadWithProgress<T>(path: string, options: UploadOptions): Promise<T> {
+  let res = await xhrSend<T>(path, options.token, options)
+  if (res.status === 401) {
+    const token = await renewAccessToken()
+    if (token) res = await xhrSend<T>(path, token, options)
+  }
+  if (res.status < 200 || res.status >= 300) {
+    const detail = res.data && typeof res.data === 'object' && 'detail' in res.data && typeof res.data.detail === 'string' ? res.data.detail : 'Error de conexión con el servidor'
+    throw new ApiError(res.status, detail)
+  }
+  return res.data as T
+}
+
+export interface DirectUploadOptions {
+  headers: Record<string, string>
+  onProgress?: (percent: number) => void
+  signal?: AbortSignal
+}
+
+/**
+ * PUT directo del archivo a una URL prefirmada del almacenamiento (Cloudflare R2). Sin credenciales de la API: ni
+ * cookies ni Authorization (la firma de la URL es la única autorización y solo sirve para esa clave y ese Content-Type).
+ * Con el adaptador local la URL es relativa a la API y se resuelve contra su origen.
+ */
+export function putToPresignedUrl(url: string, file: File, { headers, onProgress, signal }: DirectUploadOptions): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', url.startsWith('/') ? `${API_ORIGIN}${url}` : url)
+    xhr.withCredentials = false
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)) }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve()
+      reject(new ApiError(xhr.status, xhr.status === 403 ? 'El permiso de carga venció o no es válido. Vuelve a intentarlo.' : 'El almacenamiento rechazó el archivo. Vuelve a intentarlo.'))
+    }
+    xhr.onerror = () => reject(new ApiError(0, 'Se perdió la conexión durante la carga. El archivo no se guardó.'))
+    xhr.onabort = () => reject(new ApiError(0, 'Carga cancelada. El archivo no se guardó.'))
+    if (signal) {
+      if (signal.aborted) return xhr.abort()
+      signal.addEventListener('abort', () => xhr.abort(), { once: true })
+    }
+    xhr.send(file)
+  })
+}
+
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let res: Response
   try {
