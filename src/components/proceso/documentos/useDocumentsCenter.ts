@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '@/stores/app.store'
 import { monitoringApi, type MyMonitoring } from '@/services/monitoring.service'
 import { workPlanApi, type SubmissionOut, type WorkPlanOut } from '@/services/workplan.service'
-import { allDeliverables, useStudentWorkPlan } from '../workPlanUi'
+import { allDeliverables, useStudentWorkPlan } from '../workPlanUi.utils'
 import type { DraftMap, HistoryMap } from './documentosHelpers'
 import { normalizePlanDates } from './planDates'
 

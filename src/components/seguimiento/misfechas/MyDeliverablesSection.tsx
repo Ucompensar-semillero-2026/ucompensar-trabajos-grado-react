@@ -3,7 +3,7 @@ import { CalendarDays, ChevronDown, FileText, LayoutGrid, List, Search } from 'l
 import { cn } from '@/utils/cn'
 import type { CommitmentOut, TaskOut } from '@/services/monitoring.service'
 import type { DeliverableOut, StageOut, WorkPlanOut } from '@/services/workplan.service'
-import { allDeliverables } from '@/components/proceso/workPlanUi'
+import { allDeliverables } from '@/components/proceso/workPlanUi.utils'
 import { formatShortDate, normText, semesterGroups, type DraftMap, type HistoryMap } from '@/components/proceso/documentos/documentosHelpers'
 import { EmptyNote, FileTypeIcon } from '@/components/proceso/documentos/documentosUi'
 import { DeliverablesCalendar } from './DeliverablesCalendar'

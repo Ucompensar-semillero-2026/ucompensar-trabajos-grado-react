@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, GitBranch, RefreshCw } from 'lucide-react'
 import { Card, EmptyState, SearchField, Select } from '@/components/ui'
@@ -33,7 +33,7 @@ export function TrazabilidadIndex() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!accessToken) {
       setIsLoading(false)
       setError('La sesión no está disponible. Vuelve a iniciar sesión para consultar los trámites.')
@@ -45,9 +45,9 @@ export function TrazabilidadIndex() {
       .then(setRows)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los trámites.'))
       .finally(() => setIsLoading(false))
-  }
+  }, [accessToken])
 
-  useEffect(() => { load() }, [accessToken])
+  useEffect(() => { load() }, [load])
 
   const stateOptions = useMemo(() => unique([
     ...rows.map(({ process }) => [process.state.code, process.state.name] as const),

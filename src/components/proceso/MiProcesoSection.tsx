@@ -5,15 +5,8 @@ import { Badge, Card, EmptyState } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
 import { processesApi, type ProcessHistoryOut } from '@/services/processes.service'
 import { formatRelativeDate } from '@/utils/format'
-import {
-  DeliverableStatusBadge,
-  ProcessSelector,
-  allDeliverables,
-  formatCalendarDate,
-  processLabel,
-  stagesBySemester,
-  useStudentWorkPlan,
-} from './workPlanUi'
+import { DeliverableStatusBadge, ProcessSelector } from './workPlanUi'
+import { allDeliverables, formatCalendarDate, processLabel, stagesBySemester, useStudentWorkPlan } from './workPlanUi.utils'
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (

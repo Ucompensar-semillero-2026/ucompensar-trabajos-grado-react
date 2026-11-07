@@ -15,7 +15,8 @@ import {
   type SuggestedModality,
 } from '@/services/proposals.service'
 import { formatRelativeDate } from '@/utils/format'
-import { EVENT_LABELS, ProposalStatusBadge, inputClass } from './propuestasUi'
+import { ProposalStatusBadge, inputClass } from './propuestasUi'
+import { EVENT_LABELS } from './propuestasUi.utils'
 
 function ProposalDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
   const accessToken = useAppStore((s) => s.accessToken)

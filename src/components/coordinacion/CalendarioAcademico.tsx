@@ -4,14 +4,12 @@ import { CalendarDays, Eye, History, Pencil, Plus, Search } from 'lucide-react'
 import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
-import {
-  calendarAdminApi, type AdminCalendarEvent, type CatalogRef, type DateKind, type EventAction, type EventHistoryEntry, type EventInput,
-  type EventStatus, type EventTypeOut, type PeriodOut,
-} from '@/services/calendar.service'
+import { calendarAdminApi, type AdminCalendarEvent, type CatalogRef, type EventAction, type EventHistoryEntry, type EventStatus, type EventTypeOut, type PeriodOut } from '@/services/calendar.service'
 import { LoadError } from '@/components/tutor/tutorUi'
 import { EventSummary } from '@/components/publico/calendar/CalendarParts'
-import { STATUS_LABEL, TIMELINE_LABEL, formatEventDates, fromInputValue, toInputValue } from '@/components/publico/calendar/calendarFormat'
+import { STATUS_LABEL, TIMELINE_LABEL, formatEventDates } from '@/components/publico/calendar/calendarFormat'
 import type { CalendarEvent, Timeline } from '@/services/calendar.service'
+import { formFromEvent, toInput, validateForm, EventForm } from './calendarioAcademico.utils'
 
 const PAGE_SIZE = 20
 const fieldClass = 'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]'
@@ -26,55 +24,9 @@ const ACTIONS: Record<EventStatus, Array<{ action: EventAction; label: string }>
   cancelado: [],
 }
 
-export interface EventForm {
-  title: string
-  description: string
-  event_type_id: string
-  academic_period_id: string
-  modality_ids: string[]
-  allDay: boolean
-  datesConfirmed: boolean
-  dateKind: DateKind
-  start: string
-  end: string
-  dateNote: string
-}
-
 const EMPTY_FORM: EventForm = {
   title: '', description: '', event_type_id: '', academic_period_id: '', modality_ids: [], allDay: true, datesConfirmed: false,
   dateKind: 'tentativa', start: '', end: '', dateNote: '',
-}
-
-export function formFromEvent(event: AdminCalendarEvent): EventForm {
-  return {
-    title: event.title, description: event.description ?? '', event_type_id: event.event_type.id, academic_period_id: event.period?.id ?? '',
-    modality_ids: event.modalities.map((m) => m.id), allDay: event.all_day, datesConfirmed: event.dates_confirmed, dateKind: event.date_kind,
-    start: toInputValue(event.starts_at, event.all_day), end: toInputValue(event.ends_at, event.all_day), dateNote: event.date_note ?? '',
-  }
-}
-
-/** Mismas reglas que valida FastAPI (que sigue siendo la autoridad). */
-export function validateForm(form: EventForm): Partial<Record<'title' | 'type' | 'start' | 'end' | 'kind', string>> {
-  const errors: Partial<Record<'title' | 'type' | 'start' | 'end' | 'kind', string>> = {}
-  if (form.title.trim().length < 3) errors.title = 'Escribe un título de al menos 3 caracteres.'
-  if (!form.event_type_id) errors.type = 'Selecciona el tipo de proceso.'
-  if (form.datesConfirmed) {
-    if (!form.start) errors.start = 'Indica la fecha de inicio o marca las fechas como por confirmar.'
-    else if (form.end && form.end < form.start) errors.end = 'El cierre no puede ser anterior al inicio.'
-  }
-  if (form.dateKind === 'oficial' && !form.datesConfirmed) errors.kind = 'Una fecha oficial exige fechas confirmadas; mientras tanto déjala como tentativa.'
-  return errors
-}
-
-export function toInput(form: EventForm): EventInput {
-  return {
-    title: form.title.trim(), description: form.description.trim() || null, event_type_id: form.event_type_id,
-    academic_period_id: form.academic_period_id || null, modality_ids: form.modality_ids, all_day: form.allDay,
-    dates_confirmed: form.datesConfirmed, date_kind: form.dateKind,
-    starts_at: form.datesConfirmed ? fromInputValue(form.start, form.allDay) : null,
-    ends_at: form.datesConfirmed ? fromInputValue(form.end, form.allDay) : null,
-    date_note: form.dateNote.trim() || null,
-  }
 }
 
 function previewEvent(form: EventForm, types: EventTypeOut[], periods: PeriodOut[], modalities: CatalogRef[]): CalendarEvent {

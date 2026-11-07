@@ -5,19 +5,13 @@ import { ModalDialog } from '@/components/ui/ModalDialog'
 import { cn } from '@/utils/cn'
 import { ApiError } from '@/services/http'
 import { monitoringApi, type StudentRow, type TaskOut } from '@/services/monitoring.service'
-import { formatDay } from './monitoringUi'
+import { formatDay } from './monitoringUi.utils'
 import { EXTENSION_META, countByCategory, dueDistance, extensionCategory, stillOverdue, type ExtensionCategory } from './extensionHelpers'
+import { previewDue } from './extension.utils'
 
 const fieldClass = 'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]'
 const labelClass = 'mb-1 block text-[12px] font-bold text-[var(--color-secondary)]'
 const LEGEND: ExtensionCategory[] = ['vencida', 'proxima', 'en_plazo', 'entregada']
-
-/** Vista previa de la nueva fecha (días calendario). El backend es quien la calcula y valida de verdad. */
-export function previewDue(effectiveDue: string, days: number): string {
-  const date = new Date(`${effectiveDue}T12:00:00Z`)
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
 
 interface Props {
   token: string

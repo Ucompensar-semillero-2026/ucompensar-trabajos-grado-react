@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, FolderOpen, LayoutGrid, List, Search } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { DeliverableOut, StageOut, WorkPlanOut } from '@/services/workplan.service'
-import { allDeliverables } from '../workPlanUi'
+import { allDeliverables } from '../workPlanUi.utils'
 import {
   NO_FILTERS,
   STATUS_FILTER_OPTIONS,

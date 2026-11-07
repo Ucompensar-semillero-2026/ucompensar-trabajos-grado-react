@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { Briefcase, Eye, FileSearch, Lightbulb, Search, UserPlus } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, MetricCard } from '@/components/ui'
@@ -127,10 +127,13 @@ export function PortafolioProyectos() {
   }, [tab, search, kind, modality, state, tutor, dateFrom, dateTo, page, setParams])
   const returnTo = `${location.pathname}${location.search}`
 
+  // Búsqueda aplicada vigente, para saber si la nueva cambia (y volver a la página 1) sin re-ejecutar el efecto.
+  const searchRef = useRef(search)
+  searchRef.current = search
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if (searchInput !== searchRef.current) setPage(1)
       setSearch(searchInput)
-      setPage((p) => (searchInput === search ? p : 1))
     }, 300)
     return () => window.clearTimeout(timer)
   }, [searchInput])

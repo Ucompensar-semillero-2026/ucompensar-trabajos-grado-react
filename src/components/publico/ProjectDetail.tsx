@@ -10,15 +10,7 @@ import { modalityGuidance } from './modalityGuidance.data'
 import { useAppStore } from '@/stores/app.store'
 import { hasModule } from '@/config/access'
 import { modalityRouteSlug, projectModalities, projectOffers } from './projectCatalog.data'
-
-export const PORTFOLIO_PATH = '/coordinacion/portafolio'
-
-/** Solo se acepta volver al propio portafolio (con sus filtros en la query); cualquier otro valor cae al portafolio sin filtros. */
-export function safePortfolioReturn(value: unknown): string {
-  if (typeof value !== 'string' || !value.startsWith(PORTFOLIO_PATH)) return PORTFOLIO_PATH
-  const rest = value.slice(PORTFOLIO_PATH.length)
-  return rest === '' || (rest.startsWith('?') && !rest.includes('#')) ? value : PORTFOLIO_PATH
-}
+import { safePortfolioReturn } from './projectDetail.utils'
 
 export function ProjectDetail() {
   const location = useLocation()

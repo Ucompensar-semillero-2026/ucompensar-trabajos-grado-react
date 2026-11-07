@@ -1,7 +1,7 @@
 import { Download, FileDown, ListChecks } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { WorkPlanOut } from '@/services/workplan.service'
-import { formatDay, formatMoment } from '../monitoringUi'
+import { formatDay, formatMoment } from '../monitoringUi.utils'
 import { DELIVERABLE_STATUS } from './dossierHelpers'
 import { DossierCard, EmptyNote, SectionError } from './dossierUi'
 import type { DossierSection } from './useStudentDossier'

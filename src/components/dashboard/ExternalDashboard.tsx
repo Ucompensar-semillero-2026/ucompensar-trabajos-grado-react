@@ -8,7 +8,7 @@ import { processesApi, type ProcessOut } from '@/services/processes.service'
 import { externalApi, type ExternalEntityOut } from '@/services/external.service'
 import { workPlanApi, type WorkPlanOut } from '@/services/workplan.service'
 import { LoadError } from '@/components/tutor/tutorUi'
-import { allDeliverables, formatCalendarDate } from '@/components/proceso/workPlanUi'
+import { allDeliverables, formatCalendarDate } from '@/components/proceso/workPlanUi.utils'
 
 // Para no disparar demasiadas consultas: el plan se pide solo para los primeros proyectos.
 const PLAN_LIMIT = 10

@@ -4,9 +4,10 @@ import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { DeliverableOut, DraftOut, DraftWorkspaceOut, SubmissionOut } from '@/services/workplan.service'
 import type { ExtensionOut } from '@/services/monitoring.service'
-import { formatMoment } from '@/components/seguimiento/monitoringUi'
+import { formatMoment } from '@/components/seguimiento/monitoringUi.utils'
 import { fileKind } from '@/components/seguimiento/expediente/dossierHelpers'
-import { DeliverableStatusBadge, formatCalendarDate } from '../workPlanUi'
+import { DeliverableStatusBadge } from '../workPlanUi'
+import { formatCalendarDate } from '../workPlanUi.utils'
 import { PREVIEWABLE, deadlineInfo, extensionOf, formatBytes, timelineEvents, type AttemptState, type DeadlineTone, type TimelineKind } from './submissionHelpers'
 
 export function PanelCard({ title, Icon, children, className }: { title: string; Icon: LucideIcon; children: ReactNode; className?: string }) {

@@ -8,20 +8,14 @@ import {
   CALENDAR_ERROR_COPY, classifyCalendarError, eventDays, formatEventDates, monthGrid, monthLabel, monthOf, sameMonth, shiftMonth, todayKey, type CalendarErrorKind,
 } from './calendarFormat'
 
+import { upcomingEvents } from './academicCalendar.utils'
+
 type Load = { phase: 'loading' } | { phase: 'error'; kind: CalendarErrorKind } | { phase: 'ready'; items: CalendarEvent[] }
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const UPCOMING_LIMIT = 6
 const dayLabel = new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 const longDay = (key: string) => dayLabel.format(new Date(`${key}T12:00:00Z`))
-
-/** Próximos eventos: en curso y próximos por orden cronológico (los finalizados no cuentan); las fechas por confirmar van aparte. */
-export function upcomingEvents(items: CalendarEvent[]): { dated: CalendarEvent[]; pending: CalendarEvent[] } {
-  const dated = items
-    .filter((e) => e.timeline === 'proximo' || e.timeline === 'en_curso')
-    .sort((a, b) => (a.starts_at ?? '').localeCompare(b.starts_at ?? '') || a.title.localeCompare(b.title))
-  return { dated, pending: items.filter((e) => e.timeline === 'por_confirmar') }
-}
 
 /** Calendario académico general, integrado en /proyectos-de-grado. Todo sale de la API; nada está escrito en el código. */
 export function AcademicCalendar() {

@@ -1,7 +1,8 @@
 import { CalendarClock, ChevronRight, FileText } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { TaskOut } from '@/services/monitoring.service'
-import { TASK_STATE_META, TaskNotes, formatDay, formatMoment } from './monitoringUi'
+import { TaskNotes } from './monitoringUi'
+import { TASK_STATE_META, formatDay, formatMoment } from './monitoringUi.utils'
 import { TIMELINE_TONE } from './expediente/dossierHelpers'
 
 /** Línea de tiempo de las tareas de UN integrante: fechas originales y efectivas, entrega, estado y ampliaciones. El estado es el del backend. */

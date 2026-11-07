@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { DeliverButton } from './DeliverButton'
-import { formatMoment } from '@/components/seguimiento/monitoringUi'
+import { formatMoment } from '@/components/seguimiento/monitoringUi.utils'
 
 interface Props {
   fileName: string

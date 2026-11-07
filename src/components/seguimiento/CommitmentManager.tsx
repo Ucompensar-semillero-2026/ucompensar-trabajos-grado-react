@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { ApiError } from '@/services/http'
 import { monitoringApi, type CommitmentOut, type CommitmentStatus } from '@/services/monitoring.service'
-import { formatDay } from './monitoringUi'
-
-export const COMMITMENT_LABEL: Record<CommitmentStatus, string> = {
-  pendiente: 'Pendiente', en_seguimiento: 'En seguimiento', cumplido: 'Cumplido', incumplido: 'Incumplido', cancelado: 'Cancelado',
-}
+import { formatDay } from './monitoringUi.utils'
+import { COMMITMENT_LABEL } from './commitment.utils'
 
 interface Props {
   commitments: CommitmentOut[]

@@ -15,7 +15,8 @@ vi.mock('@/hooks/useMonitoringBadge', () => ({ useMonitoringBadge: () => null })
 import { portfolioApi } from '@/services/coordination.service'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { PortafolioProyectos } from './PortafolioProyectos'
-import { ProjectDetail, safePortfolioReturn } from '@/components/publico/ProjectDetail'
+import { ProjectDetail } from '@/components/publico/ProjectDetail'
+import { safePortfolioReturn } from '@/components/publico/projectDetail.utils'
 import { modulesFor } from '@/test/users'
 
 const coordinator: User = { id: 'c1', name: 'Diana Coordinadora', initials: 'DC', email: 'c@ucompensar.edu.co', roles: ['coordinador'], modules: modulesFor(['coordinador']) }

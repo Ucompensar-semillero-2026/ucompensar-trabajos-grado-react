@@ -1,6 +1,6 @@
 import { UsersRound } from 'lucide-react'
 import type { ProcessOut, TeamMemberOut } from '@/services/processes.service'
-import { formatMomentDay } from '../monitoringUi'
+import { formatMomentDay } from '../monitoringUi.utils'
 import { TEAM_ROLE_LABEL } from './dossierHelpers'
 import { Avatar, DossierCard, EmptyNote, SectionError } from './dossierUi'
 import type { DossierSection } from './useStudentDossier'

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, useMemo } from 'react'
+import { Fragment, useCallback, useEffect, useState, useMemo } from 'react'
 import { Card, Button, Badge, EmptyState, SearchField } from '@/components/ui'
 import { Check, X, ShieldCheck, Eye, Download, Filter, RefreshCw, FileSearch } from 'lucide-react'
 import { can } from '@/config/actions'
@@ -45,7 +45,7 @@ export function DocumentosSection() {
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewError, setReviewError] = useState<string | null>(null)
 
-  const loadDocuments = () => {
+  const loadDocuments = useCallback(() => {
     if (!accessToken) return
     setIsLoading(true)
     setError(null)
@@ -67,11 +67,11 @@ export function DocumentosSection() {
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los documentos'))
       .finally(() => setIsLoading(false))
-  }
+  }, [accessToken])
 
   useEffect(() => {
     loadDocuments()
-  }, [accessToken])
+  }, [loadDocuments])
 
   // Unique document types for filter
   const documentTypes = useMemo(() => {
