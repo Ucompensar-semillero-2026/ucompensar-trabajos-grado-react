@@ -9,6 +9,8 @@ import type { PortfolioItem, PortfolioPage, PortfolioSummary } from '@/services/
 import { projectOffers } from '@/components/publico/projectCatalog.data'
 
 vi.mock('@/services/coordination.service', () => ({ portfolioApi: { list: vi.fn(), summary: vi.fn() } }))
+// El contador de seguimiento del menú no es lo que se prueba aquí; sin esto pediría /api/monitoring/summary.
+vi.mock('@/hooks/useMonitoringBadge', () => ({ useMonitoringBadge: () => null }))
 
 import { portfolioApi } from '@/services/coordination.service'
 import { Sidebar } from '@/components/layout/Sidebar'
