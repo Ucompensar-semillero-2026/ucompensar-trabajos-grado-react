@@ -41,8 +41,21 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-function fileResponse(body: string | ArrayBuffer, type: string, headers: Record<string, string> = {}) {
-  return new Response(body, { status: 200, headers: { 'Content-Type': type, ...headers } })
+/**
+ * Respuesta de archivo del backend falso. No se usa `new Response(arrayBuffer)`: en Node 22 (el del CI)
+ * Response no reconoce un ArrayBuffer creado dentro del entorno jsdom y lo convierte en el texto
+ * "[object ArrayBuffer]". Aquí el cuerpo va directo a un Blob, igual que lo entrega un navegador.
+ */
+function fileResponse(body: string | ArrayBuffer, type: string, headers: Record<string, string> = {}): Response {
+  const bytes = typeof body === 'string' ? new TextEncoder().encode(body) : new Uint8Array(body)
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers({ 'Content-Type': type, ...headers }),
+    body: null,
+    blob: async () => new Blob([bytes], { type }),
+    json: async () => null,
+  } as unknown as Response
 }
 
 /** Backend falso: .../preview-info responde `info` (o un código de error) y .../file responde `file`. */
