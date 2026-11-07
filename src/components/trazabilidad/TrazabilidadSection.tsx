@@ -208,8 +208,8 @@ export function TrazabilidadSection() {
   const backTo = location.state?.fromTutorExpediente
     ? { to: `/tutor/proyectos/${processId}`, label: 'Volver al expediente del proyecto' }
     : hasModule(currentUser, 'workspace-student')
-      ? { to: '/tramites', label: 'Volver a mis trámites' }
-      : { to: '/trazabilidad', label: 'Volver al listado de trazabilidad' }
+      ? { to: '/tramites', label: 'Volver a Mis proyectos' }
+      : { to: '/trazabilidad', label: hasModule(currentUser, 'workspace-tutor') || hasModule(currentUser, 'workspace-coordination') ? 'Volver a Seguimiento de proyectos' : 'Volver al listado de trazabilidad' }
 
   return <div className="max-w-6xl space-y-5 animate-fadeIn">
     <div className="flex flex-wrap items-start justify-between gap-3">

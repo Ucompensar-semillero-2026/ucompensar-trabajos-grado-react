@@ -26,6 +26,8 @@ const MODULES: Record<string, string[]> = {
   'tutor-planes': TUTOR_WORKSPACE,
   'tutor-revisiones': TUTOR_WORKSPACE,
   'tutor-estadisticas': TUTOR_WORKSPACE,
+  seguimiento: ['docente', 'coordinador', 'administrador'],
+  'mis-fechas': ['estudiante'],
   buscar: ['administrador', 'coordinador', 'comite_grado', 'docente', 'consulta'],
   comites: ['comite_grado', 'administrador'],
   administrativo: ['administrador', 'coordinador'],

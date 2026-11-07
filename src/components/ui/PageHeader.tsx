@@ -7,6 +7,8 @@ interface PageHeaderProps {
   description?: string
   /** Muestra la fotografía y las formas decorativas a la derecha (solo en pantallas anchas). */
   showArt?: boolean
+  /** Ilustración decorativa propia a la derecha (solo pantallas anchas). Sustituye a la fotografía. */
+  illustration?: ReactNode
   actions?: ReactNode
   className?: string
 }
@@ -23,12 +25,12 @@ function AccentTitle({ title }: { title: string }) {
   )
 }
 
-export function PageHeader({ title, description, showArt = false, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, description, showArt = false, illustration, actions, className }: PageHeaderProps) {
   return (
     <header
       className={cn(
         'relative mb-5 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5 shadow-[var(--shadow-sm)] md:px-8',
-        showArt && 'lg:pr-[340px]',
+        (showArt || illustration) && 'lg:pr-[340px]',
         className
       )}
     >
@@ -44,7 +46,11 @@ export function PageHeader({ title, description, showArt = false, actions, class
         {actions && <div className="flex-shrink-0">{actions}</div>}
       </div>
 
-      {showArt && (
+      {illustration && (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-4 hidden w-[320px] items-center lg:flex">{illustration}</div>
+      )}
+
+      {showArt && !illustration && (
         <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 hidden w-[320px] lg:block">
           <span className="absolute -right-4 bottom-0 h-[88%] w-24 -skew-x-[18deg] bg-[#0876B9]" />
           <span className="absolute right-16 bottom-0 h-[70%] w-20 -skew-x-[18deg] bg-[#FF6500]" />

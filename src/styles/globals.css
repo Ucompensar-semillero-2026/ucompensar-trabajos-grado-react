@@ -463,3 +463,29 @@
   font-family: 'Sarabun', 'Segoe UI', system-ui, sans-serif;
   letter-spacing: 0.08em;
 }
+
+/* Seguimiento y alertas: entrada progresiva, pulso discreto del riesgo crítico y transición del donut. */
+@keyframes fu-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fu-glow {
+  0%, 100% { box-shadow: 0 8px 22px -8px rgba(220, 38, 38, 0.55); }
+  50% { box-shadow: 0 10px 30px -6px rgba(220, 38, 38, 0.8); }
+}
+
+@keyframes fu-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+}
+
+.fu-rise { animation: fu-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fu-delay { animation-delay: 120ms; }
+.fu-pulse { animation: fu-pulse 2.8s ease-in-out infinite; }
+.fu-glow { animation: fu-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both, fu-glow 3.2s ease-in-out 0.6s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fu-rise, .fu-pulse, .fu-glow { animation: none; }
+  .fu-donut-seg { transition: none; }
+}

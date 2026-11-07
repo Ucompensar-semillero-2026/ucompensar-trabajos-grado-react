@@ -76,7 +76,7 @@ const overview = (projects: TutorProjectOut[], stats: Partial<TutorOverviewOut['
 function deliverable(o: Partial<DeliverableOut> = {}): DeliverableOut {
   return {
     public_id: 'd1', stage_public_id: 'st1', title: 'Propuesta inicial', instructions: null, mandatory: true, applicable: true, active: true,
-    sort_order: 0, due_date: '2026-03-20', depends_on_public_id: null, accepted_extensions: null, template_file_name: null,
+    sort_order: 0, due_date: '2026-03-20', depends_on_public_id: null, accepted_extensions: null, escalate_group: true, template_file_name: null,
     template_download_url: null, status: 'disponible', is_overdue: false, can_submit: false, submissions_count: 0, current_submission: null, ...o,
   }
 }
@@ -121,24 +121,24 @@ afterEach(() => {
 describe('menú y rol del tutor', () => {
   it('uses a different menu for tutors and students, with the approved entries', () => {
     expect(TUTOR_NAV_GROUPS.map((g) => [g.label, g.items.map((i) => i.label)])).toEqual([
-      ['Principal', ['Panel del tutor']],
-      ['Seguimiento académico', ['Mis proyectos asignados', 'Trazabilidad de mis proyectos', 'Planes de trabajo', 'Plantillas y revisiones']],
-      ['Análisis y comunicación', ['Estadísticas e informes', 'Notificaciones', 'Ayuda y soporte']],
+      ['Principal', ['Inicio', 'Seguimiento de proyectos', 'Proyectos asignados']],
+      ['Seguimiento académico', ['Entregables de estudiantes', 'Planes de trabajo', 'Fechas y compromisos', 'Estadísticas e informes', 'Notificaciones']],
+      ['Ayuda', ['Ayuda y soporte']],
     ])
     expect(JSON.stringify(TUTOR_NAV_GROUPS)).not.toContain('Mi proceso de grado')
-    expect(JSON.stringify(STUDENT_NAV_GROUPS)).not.toContain('Panel del tutor')
+    expect(JSON.stringify(STUDENT_NAV_GROUPS)).not.toContain('Seguimiento de proyectos')
   })
 
   it('renders the tutor sidebar for a teacher and the student sidebar for a student', () => {
     const { unmount } = renderPage(<Sidebar user={tutorUser} onLogout={() => {}} />, '/tutor/proyectos/p1')
-    expect(screen.getByRole('button', { name: 'Panel del tutor' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mis proyectos asignados' })).toHaveAttribute('aria-current', 'page') // el expediente pertenece a "Mis proyectos"
+    expect(screen.getByRole('button', { name: 'Seguimiento de proyectos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Proyectos asignados' })).toHaveAttribute('aria-current', 'page') // el expediente pertenece a "Proyectos asignados"
     expect(screen.queryByRole('button', { name: 'Mi proceso de grado' })).not.toBeInTheDocument()
     unmount()
 
     renderPage(<Sidebar user={studentUser} onLogout={() => {}} />)
     expect(screen.getByRole('button', { name: 'Mi proceso de grado' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Panel del tutor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Seguimiento de proyectos' })).not.toBeInTheDocument()
   })
 
   it('only a pure teacher gets the tutor workspace; coordination keeps its own menu and home', () => {
@@ -172,7 +172,7 @@ describe('Panel del tutor', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Error del servidor')
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
-    expect(await screen.findByText('Mis proyectos')).toBeInTheDocument()
+    expect(await screen.findByText('Proyectos a tu cargo')).toBeInTheDocument()
     expect(tutorApi.overview).toHaveBeenCalledTimes(2)
   })
 
@@ -180,7 +180,7 @@ describe('Panel del tutor', () => {
     vi.mocked(tutorApi.overview).mockResolvedValue(overview([project()]))
     renderPage(<TutorPanel />)
 
-    const projectsCard = (await screen.findByText('Mis proyectos')).closest('.card') as HTMLElement
+    const projectsCard = (await screen.findByText('Proyectos a tu cargo')).closest('.card') as HTMLElement
     const table = within(within(projectsCard).getByRole('table'))
     expect(table.getByText('Ana Estudiante')).toBeInTheDocument()
     expect(table.getByText('Detección de fallas')).toBeInTheDocument()
@@ -202,7 +202,7 @@ describe('Panel del tutor', () => {
     vi.mocked(tutorApi.overview).mockResolvedValue(overview([project({ plan_status: 'borrador', progress: null, current_stage: null })], { average_progress: null }))
     renderPage(<TutorPanel />)
 
-    const projectsCard = (await screen.findByText('Mis proyectos')).closest('.card') as HTMLElement
+    const projectsCard = (await screen.findByText('Proyectos a tu cargo')).closest('.card') as HTMLElement
     expect(screen.getByText('Sin planes publicados con entregables obligatorios')).toBeInTheDocument()
     expect(within(projectsCard).getByText('Sin plan publicado')).toBeInTheDocument()
     expect(within(projectsCard).queryByRole('progressbar')).not.toBeInTheDocument()

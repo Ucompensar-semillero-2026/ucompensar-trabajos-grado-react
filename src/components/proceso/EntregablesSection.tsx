@@ -1,13 +1,11 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, FileUp, FolderOpen, History, MessageSquareText } from 'lucide-react'
+import { CalendarClock, FolderOpen, History, MessageSquareText, PanelRightOpen } from 'lucide-react'
 import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
-import { ApiError } from '@/services/http'
 import { filePaths } from '@/services/files.service'
 import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
 import {
-  DEFAULT_ACCEPTED_EXTENSIONS,
   workPlanApi,
   type DeliverableOut,
   type StageOut,
@@ -23,6 +21,8 @@ import {
   stagesBySemester,
   useStudentWorkPlan,
 } from './workPlanUi'
+import { TaskSubmissionModal } from './entrega/TaskSubmissionModal'
+import { DeliverButton } from './entrega/DeliverButton'
 
 const DECISION_LABEL = { aprobado: 'Aprobado', requiere_correcciones: 'Requiere correcciones' } as const
 
@@ -42,42 +42,15 @@ interface DeliverableCardProps {
 
 function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: DeliverableCardProps) {
   const accessToken = useAppStore((s) => s.accessToken)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const uploadingRef = useRef(false)
-  const [uploading, setUploading] = useState(false)
+  const [open, setOpen] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [showObservations, setShowObservations] = useState(false)
   const [history, setHistory] = useState<SubmissionOut[] | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
-  const accepted = d.accepted_extensions?.length ? d.accepted_extensions : DEFAULT_ACCEPTED_EXTENSIONS
   const current = d.current_submission
   const dependency = d.depends_on_public_id ? allDeliverables(plan).find((x) => x.public_id === d.depends_on_public_id) : null
   const observations = current?.reviews ?? []
-
-  const handleFile = async (file: File | undefined) => {
-    if (!file || !accessToken || uploadingRef.current) return
-    const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`
-    if (!accepted.includes(extension)) {
-      setMessage({ kind: 'error', text: `Formato no permitido. Usa: ${accepted.join(', ')}` })
-      return
-    }
-    uploadingRef.current = true
-    setUploading(true)
-    setMessage(null)
-    try {
-      await workPlanApi.submit(accessToken, processId, d.public_id, file)
-      setHistory(null)
-      await onChanged()
-      setMessage({ kind: 'ok', text: 'Entrega registrada. Quedó en revisión por tu tutor.' })
-    } catch (err) {
-      setMessage({ kind: 'error', text: err instanceof ApiError ? err.message : 'No se pudo registrar la entrega' })
-    } finally {
-      uploadingRef.current = false
-      setUploading(false)
-      if (inputRef.current) inputRef.current.value = ''
-    }
-  }
 
   const toggleHistory = async () => {
     const next = !showHistory
@@ -156,23 +129,19 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        {d.can_submit ? (
-          <>
-            <input
-              ref={inputRef}
-              type="file"
-              className="sr-only"
-              aria-label={`Seleccionar archivo para ${d.title}`}
-              accept={accepted.join(',')}
-              onChange={(e) => void handleFile(e.target.files?.[0])}
-              tabIndex={-1}
-            />
-            <Button type="button" size="md" disabled={uploading} onClick={() => inputRef.current?.click()}>
-              <FileUp size={16} aria-hidden />
-              {uploading ? 'Subiendo…' : current ? 'Reemplazar entrega' : 'Subir documento'}
+        {(d.can_submit || current) && (
+          d.can_submit ? (
+            <DeliverButton size="md" onClick={() => { setMessage(null); setOpen(true) }} aria-label={`Abrir entrega de ${d.title}`}>
+              Abrir entrega
+            </DeliverButton>
+          ) : (
+            <Button type="button" size="md" onClick={() => { setMessage(null); setOpen(true) }} aria-label={`Ver entrega de ${d.title}`}>
+              <PanelRightOpen size={16} aria-hidden />
+              Ver entrega
             </Button>
-          </>
-        ) : d.status === 'aprobado' ? (
+          )
+        )}
+        {d.can_submit ? null : d.status === 'aprobado' ? (
           <span className="text-[13px] font-semibold text-green-700">Entrega aprobada por tu tutor</span>
         ) : !d.applicable ? (
           <span className="text-[13px] text-[var(--color-text-muted)]">Este entregable no aplica a tu proyecto.</span>
@@ -221,6 +190,22 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
             </li>
           ))}
         </ul>
+      )}
+
+      {open && (
+        <TaskSubmissionModal
+          processId={processId}
+          deliverable={d}
+          stage={stage}
+          dependencyTitle={dependency?.title ?? null}
+          planPublishedAt={plan.published_at}
+          onClose={() => setOpen(false)}
+          onSubmitted={() => {
+            setHistory(null)
+            setMessage({ kind: 'ok', text: 'Entrega registrada. Quedó en revisión por tu tutor.' })
+            void onChanged()
+          }}
+        />
       )}
 
       {showHistory && (
@@ -272,7 +257,7 @@ export function EntregablesSection() {
           icon={FolderOpen}
           title="Aún no tienes entregables"
           description="Cuando tengas un proceso de grado y tu tutor publique el plan de trabajo, tus entregables aparecerán aquí."
-          action={<Link to="/tramites" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">Ir a Mis trámites</Link>}
+          action={<Link to="/tramites" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">Ir a Mis proyectos</Link>}
         />
       </Card>
     )

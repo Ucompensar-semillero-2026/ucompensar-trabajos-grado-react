@@ -92,7 +92,7 @@ export function TutorPanel() {
 
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[18px] font-bold text-[var(--color-text)]">Mis proyectos</h2>
+          <h2 className="text-[18px] font-bold text-[var(--color-text)]">Proyectos a tu cargo</h2>
           <Link to="/tutor/proyectos" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">Ver todos</Link>
         </div>
         <ProjectsTable projects={data.projects} limit={6} />

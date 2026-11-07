@@ -16,7 +16,7 @@ export type RouteArea = 'protected' | 'public' | 'neutral'
 
 const PROTECTED_PREFIXES = [
   '/dashboard', '/mis-propuestas', '/coordinacion', '/mi-proceso', '/tutor', '/tramites', '/nuevo', '/buscar',
-  '/trazabilidad', '/documentos', '/comites', '/administrativo', '/externo', '/calificaciones', '/notificaciones', '/reportes',
+  '/trazabilidad', '/documentos', '/comites', '/administrativo', '/externo', '/calificaciones', '/notificaciones', '/reportes', '/seguimiento', '/mis-fechas',
 ]
 
 const startsWithSegment = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`)

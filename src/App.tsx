@@ -39,6 +39,10 @@ import { ProjectsCatalog } from '@/components/publico/ProjectsCatalog'
 import { ProjectDetail } from '@/components/publico/ProjectDetail'
 import { ModalityOpportunitiesPage } from '@/components/publico/ModalityOpportunitiesPage'
 import { CalendarioAcademico } from '@/components/coordinacion/CalendarioAcademico'
+import { TaskMonitoringDashboard } from '@/components/seguimiento/TaskMonitoringDashboard'
+import { StudentTaskMonitoring } from '@/components/seguimiento/StudentTaskMonitoring'
+import { TaskAlertSettings } from '@/components/seguimiento/TaskAlertSettings'
+import { MyDatesPage } from '@/components/seguimiento/misfechas/MyDatesPage'
 
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
@@ -113,6 +117,10 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/mis-propuestas" element={<RequireModule module="mis-propuestas"><MisPropuestas /></RequireModule>} />
           {/* Coordinación académica: el backend exige coordinador/administrativo en cada endpoint */}
+          <Route path="/seguimiento" element={<RequireModule module="seguimiento"><TaskMonitoringDashboard /></RequireModule>} />
+          <Route path="/seguimiento/configuracion" element={<RequireModule module="workspace-coordination"><TaskAlertSettings /></RequireModule>} />
+          <Route path="/seguimiento/:processId/:studentId" element={<RequireModule module="seguimiento"><StudentTaskMonitoring /></RequireModule>} />
+          <Route path="/mis-fechas" element={<RequireModule module="mis-fechas"><MyDatesPage /></RequireModule>} />
           <Route path="/coordinacion/portafolio" element={<RequireModule module="portafolio"><PortafolioProyectos /></RequireModule>} />
           <Route path="/coordinacion/calendario" element={<RequireModule module="calendario"><CalendarioAcademico /></RequireModule>} />
           <Route path="/coordinacion/propuestas" element={<RequireModule module="propuestas"><PropuestasEstudiantiles /></RequireModule>} />

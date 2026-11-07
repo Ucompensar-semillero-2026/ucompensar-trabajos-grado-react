@@ -16,7 +16,7 @@ import { PlanEditor } from './PlanEditor'
 const TABS = [
   ['resumen', 'Resumen'],
   ['plan', 'Plan de trabajo'],
-  ['documentos', 'Documentos y entregables'],
+  ['documentos', 'Entregables'],
   ['cronograma', 'Cronograma'],
   ['historial', 'Historial de actividad'],
 ] as const
@@ -391,7 +391,7 @@ export function ProjectExpediente({ backTo = { to: '/tutor/proyectos', label: 'V
           to={`/trazabilidad/${processId}`}
           state={{ fromTutorExpediente: true }}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#FF6500] px-4 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-[#e65c00] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6500]"
-        ><GitBranch size={16} aria-hidden="true" />Abrir trazabilidad</Link>}
+        ><GitBranch size={16} aria-hidden="true" />Abrir seguimiento del proyecto</Link>}
       </div>
 
       <div role="tablist" aria-label="Secciones del proyecto" className="flex flex-wrap gap-2">

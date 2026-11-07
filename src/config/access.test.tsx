@@ -91,7 +91,7 @@ describe('menú según /auth/me', () => {
   it('coordinación ve Gestión y no el menú de estudiante', () => {
     renderMenu(makeUser(['coordinador']))
     expect(screen.getByRole('button', { name: 'Asignación de tutores' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Propuestas estudiantiles' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gestión de propuestas' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Comités' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Mi proceso de grado' })).not.toBeInTheDocument()
     expect(screen.getByText('Coordinación')).toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('menú según /auth/me', () => {
 
   it('el docente ve el espacio del tutor', () => {
     renderMenu(makeUser(['docente']))
-    expect(screen.getByRole('button', { name: 'Panel del tutor' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seguimiento de proyectos' })).toBeInTheDocument()
   })
 
   it('un jurado externo ve Calificaciones y Entidades externas, nada de coordinación', () => {

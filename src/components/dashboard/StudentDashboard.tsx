@@ -7,6 +7,7 @@ import { calendarApi, type CalendarEvent } from '@/services/calendar.service'
 import type { ProcessOut } from '@/services/processes.service'
 import type { DeliverableOut, StageOut, WorkPlanOut } from '@/services/workplan.service'
 import { DeliverableStatusBadge, ProcessSelector, STATUS_META, allDeliverables, formatCalendarDate, processLabel, useStudentWorkPlan } from '@/components/proceso/workPlanUi'
+import { deliverButtonClass } from '@/components/proceso/entrega/deliverButtonStyle'
 import { ChartCard, ChartEmpty, HBarList, ProgressRing } from './charts'
 
 const UPCOMING_LIMIT = 4
@@ -229,7 +230,7 @@ export function StudentDashboard() {
                     </p>
                   </div>
                   {d.can_submit ? (
-                    <Link to="/documentos" className="btn-primary inline-flex items-center gap-1.5 px-3.5 py-2 text-[12.5px]">
+                    <Link to="/documentos" className={deliverButtonClass('sm')}>
                       <Upload size={14} aria-hidden /> Subir entrega
                     </Link>
                   ) : (
@@ -248,7 +249,7 @@ export function StudentDashboard() {
         >
           {byStatus.length === 0 ? <ChartEmpty>El plan aún no tiene entregables.</ChartEmpty> : <HBarList data={byStatus} unit="entregables" />}
           <Link to="/documentos" className="mt-4 inline-flex items-center gap-2 px-2 text-[13px] font-bold text-[#0876B9] underline underline-offset-4">
-            <FileText size={15} aria-hidden /> Ir a Documentos y entregables
+            <FileText size={15} aria-hidden /> Ir a Mis tareas
           </Link>
         </ChartCard>
       </div>

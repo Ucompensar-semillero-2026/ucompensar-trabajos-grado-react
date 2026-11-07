@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import { STUDENT_NAV_GROUPS } from '@/constants'
 import type { User } from '@/types'
-import type { DeliverableOut, WorkPlanOut } from '@/services/workplan.service'
+import type { DeliverableOut, DraftWorkspaceOut, WorkPlanOut } from '@/services/workplan.service'
 
 vi.mock('@/services/processes.service', () => ({ processesApi: { list: vi.fn(), history: vi.fn() } }))
 vi.mock('@/services/workplan.service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/workplan.service')>()),
-  workPlanApi: { get: vi.fn(), submit: vi.fn(), listSubmissions: vi.fn() },
+  workPlanApi: { get: vi.fn(), submit: vi.fn(), listSubmissions: vi.fn(), draftWorkspace: vi.fn(), saveDraft: vi.fn(), deleteDraft: vi.fn(), publishDraft: vi.fn() },
 }))
 vi.mock('@/components/documentos/DocumentosSection', () => ({ DocumentosSection: () => <p>repositorio de revisión</p> }))
 
@@ -57,6 +57,7 @@ function deliverable(overrides: Partial<DeliverableOut> = {}): DeliverableOut {
     due_date: '2026-03-20',
     depends_on_public_id: null,
     accepted_extensions: null,
+    escalate_group: true,
     template_file_name: null,
     template_download_url: null,
     status: 'disponible',
@@ -133,20 +134,20 @@ describe('menú del estudiante', () => {
   it('lists the approved entries with existing routes and without "Nuevo trámite"', () => {
     const entries = STUDENT_NAV_GROUPS.map((g) => [g.label, g.items.map((i) => [i.label, i.path ?? i.href])])
     expect(entries).toEqual([
-      ['Principal', [['Inicio', '/dashboard'], ['Mi proceso de grado', '/mi-proceso'], ['Mis trámites', '/tramites']]],
-      ['Seguimiento académico', [['Mis propuestas', '/mis-propuestas'], ['Documentos y entregables', '/documentos'], ['Notificaciones', '/notificaciones']]],
+      ['Principal', [['Inicio', '/dashboard'], ['Mi proceso de grado', '/mi-proceso'], ['Mis proyectos', '/tramites']]],
+      ['Seguimiento académico', [['Mis propuestas', '/mis-propuestas'], ['Mis tareas', '/documentos'], ['Importantes', '/mis-fechas'], ['Notificaciones', '/notificaciones']]],
       ['Ayuda', [['Ayuda y soporte', 'https://ucompensar.edu.co/soporte-crm/']]],
     ])
   })
 })
 
 describe('Mi proceso de grado', () => {
-  it('shows an informative empty state with a link to "Mis trámites" when there is no process', async () => {
+  it('shows an informative empty state with a link to "Mis proyectos" when there is no process', async () => {
     vi.mocked(processesApi.list).mockResolvedValue([])
     renderAt(<MiProcesoSection />)
 
     expect(await screen.findByText('Aún no tienes un proceso de grado activo')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ir a Mis trámites' })).toHaveAttribute('href', '/tramites')
+    expect(screen.getByRole('link', { name: 'Ir a Mis proyectos' })).toHaveAttribute('href', '/tramites')
     expect(workPlanApi.get).not.toHaveBeenCalled()
   })
 
@@ -221,7 +222,13 @@ describe('Mi proceso de grado', () => {
 describe('Documentos y entregables', () => {
   const findCard = (title: string) => screen.getByRole('heading', { name: title }).closest('article') as HTMLElement
 
-  it('renders the template download, instructions and due date, and offers "Subir documento"', async () => {
+  const workspace = (o: Partial<DraftWorkspaceOut> = {}): DraftWorkspaceOut => ({
+    deliverable_public_id: 'd1', current_draft: null, drafts: [], submissions: [], can_submit: true, blocked_reason: null,
+    accepted_extensions: ['.pdf', '.docx'], max_upload_mb: 20, ...o,
+  })
+  const draft = { public_id: 'dr1', version: 1, file_name: 'propuesta.pdf', content_type: 'application/pdf', size_bytes: 2048, status: 'vigente' as const, created_at: '2026-03-10T10:00:00', closed_at: null, submission_version: null, download_url: 'https://files.example/borrador.pdf?sig=2' }
+
+  it('renders the template download, instructions and due date, and offers "Abrir entrega"', async () => {
     vi.mocked(workPlanApi.get).mockResolvedValue(
       plan([deliverable({ template_file_name: 'formato.pdf', template_download_url: 'https://files.example/formato.pdf?sig=9' })])
     )
@@ -232,7 +239,7 @@ describe('Documentos y entregables', () => {
     // La plantilla se ve y se descarga por el backend (VisorDocumento), no con la URL firmada.
     expect(card.getByRole('button', { name: /Descargar plantilla: formato\.pdf/ })).toBeInTheDocument()
     expect(card.getByRole('button', { name: 'Ver formato.pdf' })).toBeInTheDocument()
-    expect(card.getByRole('button', { name: 'Subir documento' })).toBeEnabled()
+    expect(card.getByRole('button', { name: 'Abrir entrega de Propuesta inicial' })).toBeEnabled()
     expect(card.getByText('Disponible para entregar')).toBeInTheDocument()
     expect(card.getByText('Obligatorio')).toBeInTheDocument()
   })
@@ -248,78 +255,86 @@ describe('Documentos y entregables', () => {
 
     await screen.findByRole('heading', { name: 'Ejecución' })
     const card = within(findCard('Ejecución'))
-    expect(card.queryByRole('button', { name: /Subir documento|Reemplazar entrega/ })).not.toBeInTheDocument()
+    expect(card.queryByRole('button', { name: /Abrir entrega|Ver entrega/ })).not.toBeInTheDocument()
     expect(card.getByText('Se habilita cuando se apruebe «Primer informe».')).toBeInTheDocument()
   })
 
-  it('uploads a deliverable once, reloads from the API and never shows it as approved', async () => {
+  it('saves a draft that is NOT delivered and delivers once with the single "Entregar" button, after confirming', async () => {
     const user = userEvent.setup()
     vi.mocked(workPlanApi.get)
       .mockResolvedValueOnce(plan([deliverable()]))
       .mockResolvedValue(plan([deliverable({ status: 'en_revision', submissions_count: 1, current_submission: submission() })]))
-    vi.mocked(workPlanApi.submit).mockResolvedValue(submission() as never)
+    vi.mocked(workPlanApi.draftWorkspace)
+      .mockResolvedValueOnce(workspace())
+      .mockResolvedValue(workspace({ drafts: [{ ...draft, status: 'publicado', submission_version: 1, download_url: null }], submissions: [submission()] }))
+    vi.mocked(workPlanApi.saveDraft).mockResolvedValue(workspace({ current_draft: draft, drafts: [draft] }))
+    vi.mocked(workPlanApi.publishDraft).mockResolvedValue(submission() as never)
     renderAt(<EntregablesSection />)
 
-    await screen.findByRole('heading', { name: 'Propuesta inicial' })
+    await user.click(await screen.findByRole('button', { name: 'Abrir entrega de Propuesta inicial' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Propuesta inicial' })
+    await within(dialog).findByText('Aún no has cargado tu archivo para esta actividad.')
+    expect(within(dialog).getAllByRole('button', { name: /^Entregar$/ })).toHaveLength(1) // un único botón, en el pie
+    expect(within(dialog).getByRole('button', { name: /^Entregar$/ })).toBeDisabled()
+
     const file = new File(['%PDF-1.7'], 'propuesta.pdf', { type: 'application/pdf' })
-    await user.upload(screen.getByLabelText('Seleccionar archivo para Propuesta inicial'), file)
+    await user.upload(within(dialog).getByLabelText('Seleccionar archivo'), file)
+    await waitFor(() => expect(workPlanApi.saveDraft).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(workPlanApi.saveDraft).mock.calls[0].slice(0, 4)).toEqual(['token', 'p1', 'd1', file])
+    expect(await within(dialog).findByText('Borrador guardado (no entregado)')).toBeInTheDocument()
+    expect(within(dialog).getByText('Borrador guardado correctamente. Aún no se ha entregado.')).toBeInTheDocument()
+    expect(workPlanApi.publishDraft).not.toHaveBeenCalled() // cargar no entrega
+    expect(workPlanApi.submit).not.toHaveBeenCalled()
 
-    await waitFor(() => expect(workPlanApi.submit).toHaveBeenCalledTimes(1))
-    expect(workPlanApi.submit).toHaveBeenCalledWith('token', 'p1', 'd1', file)
-    const card = within(findCard('Propuesta inicial'))
-    expect(await card.findByText('En revisión')).toBeInTheDocument()
-    expect(card.queryByText('Aprobado')).not.toBeInTheDocument()
-    expect(card.getByText('Entrega registrada. Quedó en revisión por tu tutor.')).toBeInTheDocument()
-    expect(card.getByRole('button', { name: 'Reemplazar entrega' })).toBeInTheDocument()
-    expect(card.getByRole('button', { name: /Descargar mi entrega/ })).toBeInTheDocument()
-    // Subir un archivo no suma al avance: solo cuenta lo aprobado por el tutor.
-    expect(screen.getByText(/entregables obligatorios aprobados/).textContent).toMatch(/^0\s*de\s*1/)
-  })
+    await user.click(within(dialog).getByRole('button', { name: /^Entregar$/ }))
+    const confirm = screen.getByRole('alertdialog', { name: '¿Confirmas la entrega?' })
+    expect(within(confirm).getByText('propuesta.pdf')).toBeInTheDocument()
+    expect(within(confirm).getByText('Versión 1')).toBeInTheDocument()
+    await user.click(within(confirm).getByRole('button', { name: 'Confirmar entrega' }))
 
-  it('ignores a second selection while the first upload is in flight', async () => {
-    let resolveSubmit: (v: unknown) => void = () => {}
-    vi.mocked(workPlanApi.get).mockResolvedValue(plan([deliverable()]))
-    vi.mocked(workPlanApi.submit).mockReturnValue(new Promise((r) => (resolveSubmit = r)) as never)
-    renderAt(<EntregablesSection />)
-
-    await screen.findByRole('heading', { name: 'Propuesta inicial' })
-    const input = screen.getByLabelText('Seleccionar archivo para Propuesta inicial')
-    const file = new File(['%PDF-1.7'], 'a.pdf')
-    fireEvent.change(input, { target: { files: [file] } })
-    fireEvent.change(input, { target: { files: [file] } })
-    resolveSubmit(submission())
-
-    await waitFor(() => expect(workPlanApi.submit).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(workPlanApi.publishDraft).toHaveBeenCalledTimes(1))
+    expect(workPlanApi.publishDraft).toHaveBeenCalledWith('token', 'p1', 'd1', 'dr1', undefined)
+    expect(await within(dialog).findByText('¡Entrega realizada! Tu tutor ya puede revisarla.')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: /^Entregar$/ })).not.toBeInTheDocument() // publicada: no se vuelve a ofrecer
+    expect(screen.getByText('Entrega registrada. Quedó en revisión por tu tutor.')).toBeInTheDocument()
   })
 
   it('rejects a disallowed format before calling the API', async () => {
+    const user = userEvent.setup({ applyAccept: false })
     vi.mocked(workPlanApi.get).mockResolvedValue(plan([deliverable({ accepted_extensions: ['.docx'] })]))
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ accepted_extensions: ['.docx'] }))
     renderAt(<EntregablesSection />)
 
-    await screen.findByRole('heading', { name: 'Propuesta inicial' })
-    fireEvent.change(screen.getByLabelText('Seleccionar archivo para Propuesta inicial'), { target: { files: [new File(['x'], 'malware.exe')] } })
+    await user.click(await screen.findByRole('button', { name: 'Abrir entrega de Propuesta inicial' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Propuesta inicial' })
+    await user.upload(await within(dialog).findByLabelText('Seleccionar archivo'), new File(['x'], 'malware.exe'))
 
-    expect(await screen.findByText(/Formato no permitido. Usa: \.docx/)).toBeInTheDocument()
-    expect(workPlanApi.submit).not.toHaveBeenCalled()
+    expect(await within(dialog).findByText(/Formato no permitido. Usa: \.docx/)).toBeInTheDocument()
+    expect(workPlanApi.saveDraft).not.toHaveBeenCalled()
   })
 
-  it('shows the server error and does not pretend the delivery was registered', async () => {
+  it('shows the server error on delivery, keeps the draft and never pretends it was delivered', async () => {
+    const user = userEvent.setup()
     vi.mocked(workPlanApi.get).mockResolvedValue(plan([deliverable()]))
-    vi.mocked(workPlanApi.submit).mockRejectedValue(new ApiError(409, 'Este entregable ya fue aprobado'))
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ current_draft: draft, drafts: [draft] }))
+    vi.mocked(workPlanApi.publishDraft).mockRejectedValue(new ApiError(409, 'Este entregable ya fue aprobado'))
     renderAt(<EntregablesSection />)
 
-    await screen.findByRole('heading', { name: 'Propuesta inicial' })
-    fireEvent.change(screen.getByLabelText('Seleccionar archivo para Propuesta inicial'), { target: { files: [new File(['%PDF'], 'a.pdf')] } })
+    await user.click(await screen.findByRole('button', { name: 'Abrir entrega de Propuesta inicial' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Propuesta inicial' })
+    await user.click(await within(dialog).findByRole('button', { name: /^Entregar$/ }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar entrega' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Este entregable ya fue aprobado')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Este entregable ya fue aprobado Tu borrador se conserva')
+    expect(within(dialog).getByText('Borrador guardado (no entregado)')).toBeInTheDocument()
     expect(screen.queryByText('Entrega registrada. Quedó en revisión por tu tutor.')).not.toBeInTheDocument()
   })
 
-  it('shows the tutor\'s observations and allows a replacement when corrections are requested', async () => {
+  it('shows the tutor\'s observations and lets the student open the task to deliver a corrected version', async () => {
     const user = userEvent.setup()
     const reviewed = submission({
       status: 'requiere_correcciones',
-      reviews: [{ public_id: 'r1', decision: 'requiere_correcciones', comment: 'Falta el diseño muestral', reviewer: { public_id: 't', full_name: 'Prof. Tutor' }, created_at: '2026-03-12T10:00:00' }],
+      reviews: [{ public_id: 'r1', decision: 'requiere_correcciones', comment: 'Falta el diseño muestral', reviewer: { public_id: 't', full_name: 'Prof. Tutor' }, created_at: '2026-03-12T10:00:00' }]
     })
     vi.mocked(workPlanApi.get).mockResolvedValue(
       plan([deliverable({ status: 'requiere_correcciones', submissions_count: 1, current_submission: reviewed })])
@@ -328,7 +343,7 @@ describe('Documentos y entregables', () => {
 
     await screen.findByRole('heading', { name: 'Propuesta inicial' })
     const card = within(findCard('Propuesta inicial'))
-    expect(card.getByRole('button', { name: 'Reemplazar entrega' })).toBeEnabled()
+    expect(card.getByRole('button', { name: 'Abrir entrega de Propuesta inicial' })).toBeEnabled()
     expect(card.queryByText('Falta el diseño muestral')).not.toBeInTheDocument()
     await user.click(card.getByRole('button', { name: /Ver observaciones \(1\)/ }))
     expect(card.getByText('Falta el diseño muestral')).toBeInTheDocument()

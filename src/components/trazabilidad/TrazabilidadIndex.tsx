@@ -19,6 +19,9 @@ export function TrazabilidadIndex() {
   const accessToken = useAppStore((s) => s.accessToken)
   const currentUser = useAppStore((s) => s.currentUser)
   const isTutor = hasModule(currentUser, 'workspace-tutor')
+  const isStudent = hasModule(currentUser, 'workspace-student')
+  // Docente y coordinación conocen este módulo como «Seguimiento de proyectos» (catálogo en config/navLabels.ts).
+  const isFollowUp = isTutor || hasModule(currentUser, 'workspace-coordination')
   const { canView } = usePermisos()
   const [rows, setRows] = useState<TraceRow[]>([])
   const [query, setQuery] = useState('')
@@ -84,7 +87,7 @@ export function TrazabilidadIndex() {
     <div className="max-w-6xl space-y-5 animate-fadeIn">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="section-title">{isTutor ? 'Trazabilidad de mis proyectos' : 'Trazabilidad de trámites'}</h1>
+          <h1 className="section-title">{isFollowUp ? 'Seguimiento de proyectos' : isStudent ? 'Trazabilidad de mis proyectos' : 'Trazabilidad de trámites'}</h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">{isTutor ? 'Consulta los estados, documentos y movimientos de los proyectos que tienes asignados.' : 'Busca un trámite y consulta su estado, documentos e historial de movimientos.'}</p>
         </div>
         <button type="button" onClick={load} disabled={isLoading} className="btn-secondary inline-flex items-center gap-2 px-3 py-2 text-sm disabled:opacity-50">
@@ -177,7 +180,7 @@ export function TrazabilidadIndex() {
                 <div className="flex items-center justify-between gap-3 text-xs text-[var(--color-text-muted)] sm:flex-col sm:items-end">
                   <span>Actualizado {formatRelativeDate(tramite.fechaActualizacion)}</span>
                   <button type="button" onClick={() => navigate(`/trazabilidad/${tramite.id}`)} className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-primary)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-                    Ver trazabilidad <ArrowRight size={15} aria-hidden="true" />
+                    {isFollowUp ? 'Ver seguimiento' : 'Ver trazabilidad'} <ArrowRight size={15} aria-hidden="true" />
                   </button>
                 </div>
               </div>
