@@ -15,6 +15,8 @@ vi.mock('@/services/processes.service', () => ({
   processesApi: { teamCandidates: vi.fn(), addTeamMember: vi.fn(), changeTutor: vi.fn(), team: vi.fn() },
 }))
 vi.mock('@/services/modalities.service', () => ({ modalitiesApi: { list: vi.fn() } }))
+// El contador de seguimiento del menú no es lo que se prueba aquí; sin esto pediría /api/monitoring/summary.
+vi.mock('@/hooks/useMonitoringBadge', () => ({ useMonitoringBadge: () => null }))
 vi.mock('@/components/dashboard/DashboardSection', () => ({ DashboardSection: () => <p>tablero general</p> }))
 vi.mock('@/components/dashboard/StudentDashboard', () => ({ StudentDashboard: () => <p>panel del estudiante</p> }))
 vi.mock('@/components/tutor/TutorPages', () => ({ TutorPanel: () => <p>panel del tutor</p> }))
