@@ -1,8 +1,8 @@
 import { Activity, Handshake, MessageSquarePlus, Video } from 'lucide-react'
 import type { Expediente } from '@/services/monitoring.service'
 import { CommitmentManager } from '../CommitmentManager'
-import { formatMoment } from '../monitoringUi'
-import { KIND_LABEL } from '../TeacherInterventionModal'
+import { formatMoment } from '../monitoringUi.utils'
+import { KIND_LABEL } from '../intervention.utils'
 import { DossierCard, EmptyNote } from './dossierUi'
 
 interface InterventionsPanelProps {

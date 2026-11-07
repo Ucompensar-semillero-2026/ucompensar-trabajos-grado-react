@@ -1,7 +1,7 @@
 import { ArrowRight, Download, FileText } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { ProcessDocumentOut } from '@/services/documents.service'
-import { formatMoment, formatMomentDay } from '../monitoringUi'
+import { formatMoment, formatMomentDay } from '../monitoringUi.utils'
 import { DOCUMENT_STATUS, fileKind } from './dossierHelpers'
 import { DossierCard, EmptyNote, SectionError } from './dossierUi'
 import type { DossierSection } from './useStudentDossier'

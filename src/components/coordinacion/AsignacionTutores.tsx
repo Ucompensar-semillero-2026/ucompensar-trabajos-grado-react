@@ -9,7 +9,8 @@ import { modalitiesApi } from '@/services/modalities.service'
 import { processesApi, type TutorCandidate } from '@/services/processes.service'
 import type { ModalityOut } from '@/types/api'
 import { lockScroll } from '@/utils/scrollLock'
-import { LoadError, projectTitle } from '@/components/tutor/tutorUi'
+import { LoadError } from '@/components/tutor/tutorUi'
+import { projectTitle } from '@/components/tutor/tutorUi.utils'
 
 const PAGE_SIZE = 15
 const fieldClass =

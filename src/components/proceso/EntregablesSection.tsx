@@ -13,14 +13,8 @@ import {
   type WorkPlanOut,
 } from '@/services/workplan.service'
 import { formatRelativeDate } from '@/utils/format'
-import {
-  DeliverableStatusBadge,
-  ProcessSelector,
-  allDeliverables,
-  formatCalendarDate,
-  stagesBySemester,
-  useStudentWorkPlan,
-} from './workPlanUi'
+import { DeliverableStatusBadge, ProcessSelector } from './workPlanUi'
+import { allDeliverables, formatCalendarDate, stagesBySemester, useStudentWorkPlan } from './workPlanUi.utils'
 import { TaskSubmissionModal } from './entrega/TaskSubmissionModal'
 import { DeliverButton } from './entrega/DeliverButton'
 

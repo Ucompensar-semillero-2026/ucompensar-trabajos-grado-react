@@ -3,7 +3,7 @@ import { AlertTriangle, Check, CircleDashed, ClipboardList, FileText } from 'luc
 import { cn } from '@/utils/cn'
 import type { ProcessOut } from '@/services/processes.service'
 import type { StageOut, WorkPlanOut } from '@/services/workplan.service'
-import { processLabel } from '../workPlanUi'
+import { processLabel } from '../workPlanUi.utils'
 import { processSummary, stageState, stageStateLabel, type StageState } from './documentosHelpers'
 
 interface OverviewProps {

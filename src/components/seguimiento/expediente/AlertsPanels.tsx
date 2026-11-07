@@ -2,7 +2,8 @@ import { AlertTriangle, CheckCircle2, Clock, ShieldAlert, UsersRound } from 'luc
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { Expediente, RiskLevel } from '@/services/monitoring.service'
-import { GroupRiskBanner, RISK_META, formatDay } from '../monitoringUi'
+import { GroupRiskBanner } from '../monitoringUi'
+import { RISK_META, formatDay } from '../monitoringUi.utils'
 import { alertReasons } from '../monitoringHelpers'
 import { DossierCard, EmptyNote } from './dossierUi'
 

@@ -17,9 +17,11 @@ vi.mock('@/services/calendar.service', async (importOriginal) => ({
 }))
 
 import { calendarAdminApi, calendarApi } from '@/services/calendar.service'
-import { AcademicCalendar, upcomingEvents } from './AcademicCalendar'
+import { AcademicCalendar } from './AcademicCalendar'
+import { upcomingEvents } from './academicCalendar.utils'
 import { dayKey, eventDays, formatEventDates, monthGrid, todayKey } from './calendarFormat'
-import { CalendarioAcademico, toInput, validateForm, type EventForm } from '@/components/coordinacion/CalendarioAcademico'
+import { CalendarioAcademico } from '@/components/coordinacion/CalendarioAcademico'
+import { type EventForm, toInput, validateForm } from '@/components/coordinacion/calendarioAcademico.utils'
 
 const type = { id: 't1', code: 'recepcion_propuestas', name: 'Recepción de propuestas' }
 const facets: CalendarFacets = {

@@ -14,7 +14,7 @@ vi.mock('@/services/proposals.service', async (importOriginal) => ({
 import { proposalsApi } from '@/services/proposals.service'
 import { ModalityOpportunitiesPage } from './ModalityOpportunitiesPage'
 import { modalityRouteSlug, projectModalities } from './projectCatalog.data'
-import { PROPOSAL_ENABLED_MODALITIES } from './ProposeProjectCta'
+import { PROPOSAL_ENABLED_MODALITIES } from './proposeProject.utils'
 
 const ENABLED = ['Proyecto de investigación', 'Proyecto de semillero de investigación', 'Proyecto de emprendimiento', 'Proyecto aplicado']
 const slugOf = (name: string) => modalityRouteSlug(projectModalities.find((m) => m.name === name)!.id)

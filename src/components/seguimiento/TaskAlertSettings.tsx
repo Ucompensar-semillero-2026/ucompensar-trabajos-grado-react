@@ -6,16 +6,9 @@ import { LoadError } from '@/components/tutor/tutorUi'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
 import { monitoringApi, type AlertSettings, type AlertSettingsInput } from '@/services/monitoring.service'
+import { thresholdProblem } from './alertSettings.utils'
 
 const fieldClass = 'w-28 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] outline-none focus:border-[#0876B9]'
-
-/** Mismo orden lógico que valida el backend (que sigue siendo la autoridad). */
-export function thresholdProblem(a: number, m: number, c: number): string | null {
-  if (!Number.isInteger(a) || a < 1) return 'La atención inicial debe ser al menos 1 tarea vencida.'
-  if (m <= a) return 'El riesgo moderado debe requerir más tareas vencidas que la atención inicial.'
-  if (c <= m) return 'El riesgo crítico debe requerir más tareas vencidas que el riesgo moderado.'
-  return null
-}
 
 /** Configuración de alertas (solo Coordinación; el backend rechaza a cualquier otro rol). */
 export function TaskAlertSettings() {

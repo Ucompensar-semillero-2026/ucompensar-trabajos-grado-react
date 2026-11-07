@@ -13,7 +13,8 @@ import {
   type PortfolioPage,
   type PortfolioSummary,
 } from '@/services/coordination.service'
-import { LoadError, projectTitle } from '@/components/tutor/tutorUi'
+import { LoadError } from '@/components/tutor/tutorUi'
+import { projectTitle } from '@/components/tutor/tutorUi.utils'
 import { CHART_COLORS, ChartCard, ChartEmpty, Donut, GroupedColumns, HBarList, type ChartDatum } from '@/components/dashboard/charts'
 import { daysSince, parseUtc } from '@/utils/format'
 

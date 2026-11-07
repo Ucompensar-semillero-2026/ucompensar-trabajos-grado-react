@@ -11,7 +11,8 @@ import {
   type StageOut,
   type WorkPlanOut,
 } from '@/services/workplan.service'
-import { DeliverableStatusBadge, formatCalendarDate } from '@/components/proceso/workPlanUi'
+import { DeliverableStatusBadge } from '@/components/proceso/workPlanUi'
+import { formatCalendarDate } from '@/components/proceso/workPlanUi.utils'
 
 const inputClass =
   'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]'

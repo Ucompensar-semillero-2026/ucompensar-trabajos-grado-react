@@ -3,17 +3,11 @@ import { AlertCircle, BarChart3, CalendarClock, ClipboardList, FileCheck2, Gauge
 import { Badge, Card, EmptyState, MetricCard } from '@/components/ui'
 import { formatRelativeDate } from '@/utils/format'
 import { ChartCard, ChartEmpty, HBarList } from '@/components/dashboard/charts'
-import { formatCalendarDate, STATUS_META } from '@/components/proceso/workPlanUi'
+import { formatCalendarDate, STATUS_META } from '@/components/proceso/workPlanUi.utils'
 import type { DeliverableStatus } from '@/services/workplan.service'
 import type { TutorOverviewOut } from '@/services/tutor.service'
-import {
-  LoadError,
-  PlanStatusBadge,
-  ProgressBar,
-  ProjectsTable,
-  projectTitle,
-  useTutorOverview,
-} from './tutorUi'
+import { LoadError, PlanStatusBadge, ProgressBar, ProjectsTable } from './tutorUi'
+import { projectTitle, useTutorOverview } from './tutorUi.utils'
 
 function Loading() {
   return <p className="px-2 py-8 text-[13px] text-[var(--color-text-muted)]">Cargando tus proyectos…</p>
