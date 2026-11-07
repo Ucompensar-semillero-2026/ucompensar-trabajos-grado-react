@@ -1,13 +1,15 @@
 import { useRef } from 'react'
-import { Check, Download, Eye, FileText, Upload } from 'lucide-react'
+import { Check, Eye, FileText, Upload } from 'lucide-react'
 import { Badge, Button, Card, EmptyState } from '@/components/ui'
 import type { ChecklistItemOut, ProcessDocumentOut } from '@/services/documents.service'
 import type { EtapaPlanTrazabilidad } from '@/services/trazabilidad.service'
 import type { DeliverableStatus, SubmissionOut } from '@/services/workplan.service'
-import { resolveFileUrl } from '@/services/http'
+import { filePaths } from '@/services/files.service'
+import { DownloadFileButton } from '@/components/documentos/ArchivoAcciones'
 import { formatRelativeDate } from '@/utils/format'
 
 interface Props {
+  processId: string
   checklist: ChecklistItemOut[]
   documents: ProcessDocumentOut[]
   workPlanDocuments: EtapaPlanTrazabilidad[]
@@ -43,7 +45,7 @@ const deliverableStatusMeta: Record<DeliverableStatus, { label: string; variant:
   aprobado: { label: 'Aprobado', variant: 'green' },
 }
 
-export function TabDocumentos({ checklist, documents, workPlanDocuments, workPlanDocumentsError, studentName, canUpload, canReview, reviewingDocumentId, uploadingType, onUpload, onApprove, onPreview, onPreviewWorkPlan }: Props) {
+export function TabDocumentos({ processId, checklist, documents, workPlanDocuments, workPlanDocumentsError, studentName, canUpload, canReview, reviewingDocumentId, uploadingType, onUpload, onApprove, onPreview, onPreviewWorkPlan }: Props) {
   const inputs = useRef<Record<string, HTMLInputElement | null>>({})
   const checklistTypeIds = new Set(checklist.map((item) => item.document_type.public_id))
   const otherDocumentTypes = [...new Map(documents
@@ -73,7 +75,7 @@ export function TabDocumentos({ checklist, documents, workPlanDocuments, workPla
                   <div className="flex items-center gap-1">
                     {canReview && doc.status === 'pendiente' && <Button type="button" size="sm" disabled={reviewingDocumentId === doc.public_id} onClick={() => onApprove(doc)}><Check size={14} aria-hidden="true" />{reviewingDocumentId === doc.public_id ? 'Aprobando…' : 'Aprobar'}</Button>}
                     <button type="button" aria-label={`Previsualizar ${doc.file_name}`} onClick={() => onPreview(doc)} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Eye size={16} aria-hidden="true" /></button>
-                    <a aria-label={`Descargar ${doc.file_name}`} href={resolveFileUrl(doc.download_url)} download={doc.file_name} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Download size={16} aria-hidden="true" /></a>
+                    <DownloadFileButton file={{ path: filePaths.document(doc.public_id), fileName: doc.file_name }} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)] disabled:opacity-50" />
                   </div>
                 </li>
               })}
@@ -104,7 +106,7 @@ export function TabDocumentos({ checklist, documents, workPlanDocuments, workPla
                 <div className="flex items-center gap-1">
                   {canReview && doc.status === 'pendiente' && <Button type="button" size="sm" disabled={reviewingDocumentId === doc.public_id} onClick={() => onApprove(doc)}><Check size={14} aria-hidden="true" />{reviewingDocumentId === doc.public_id ? 'Aprobando…' : 'Aprobar'}</Button>}
                   <button type="button" aria-label={`Previsualizar ${doc.file_name}`} onClick={() => onPreview(doc)} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Eye size={16} aria-hidden="true" /></button>
-                  <a aria-label={`Descargar ${doc.file_name}`} href={resolveFileUrl(doc.download_url)} download={doc.file_name} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Download size={16} aria-hidden="true" /></a>
+                  <DownloadFileButton file={{ path: filePaths.document(doc.public_id), fileName: doc.file_name }} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)] disabled:opacity-50" />
                 </div>
               </li>
             })}
@@ -165,7 +167,7 @@ export function TabDocumentos({ checklist, documents, workPlanDocuments, workPla
                                 <Badge variant={submissionStatus.variant}>{submissionStatus.label}</Badge>
                                 <div className="flex items-center gap-1">
                                   <button type="button" aria-label={`Previsualizar ${submission.file_name}`} onClick={() => onPreviewWorkPlan(submission, deliverable.deliverableTitle)} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Eye size={16} aria-hidden="true" /></button>
-                                  <a aria-label={`Descargar ${submission.file_name}`} href={resolveFileUrl(submission.download_url)} download={submission.file_name} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)]"><Download size={16} aria-hidden="true" /></a>
+                                  <DownloadFileButton file={{ path: filePaths.submission(processId, submission.public_id), fileName: submission.file_name }} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg)] hover:text-[var(--color-primary)] disabled:opacity-50" />
                                 </div>
                               </li>
                             })}

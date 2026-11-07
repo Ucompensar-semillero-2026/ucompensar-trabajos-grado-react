@@ -17,6 +17,8 @@ export interface ProcessDocumentOut {
   version: number
   status: DocumentStatus
   download_url: string
+  /** El archivo ya no está en el almacenamiento (hay que volver a subirlo). */
+  file_missing?: boolean
   uploaded_by: BackendUser
   reviewed_by: BackendUser | null
   uploaded_at: string
