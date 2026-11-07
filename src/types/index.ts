@@ -9,6 +9,8 @@ export type NavSection =
   | 'asignacion'
   | 'portafolio'
   | 'calendario'
+  | 'seguimiento'
+  | 'mis-fechas'
   | 'tutor'
   | 'tutor-proyectos'
   | 'tutor-planes'

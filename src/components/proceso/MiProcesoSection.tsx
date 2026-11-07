@@ -62,7 +62,7 @@ export function MiProcesoSection() {
           description="Cuando te postules a una oferta o inicies un trámite, aquí verás tu plan de trabajo, tus fechas y tu avance."
           action={
             <Link to="/tramites" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">
-              Ir a Mis trámites
+              Ir a Mis proyectos
             </Link>
           }
         />
@@ -81,7 +81,7 @@ export function MiProcesoSection() {
             description={`Para «${selected ? processLabel(selected) : 'tu proceso'}» todavía no hay etapas ni fechas publicadas. Cuando tu tutor las confirme, aparecerán aquí.`}
             action={
               <Link to="/tramites" className="text-[13px] font-bold text-[#0876B9] underline underline-offset-4">
-                Ver Mis trámites
+                Ver Mis proyectos
               </Link>
             }
           />
@@ -177,7 +177,7 @@ export function MiProcesoSection() {
             </ul>
           )}
           <Link to="/documentos" className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-[#0876B9] underline underline-offset-4">
-            <FileText size={15} aria-hidden /> Ir a Documentos y entregables
+            <FileText size={15} aria-hidden /> Ir a Mis tareas
           </Link>
         </Card>
 

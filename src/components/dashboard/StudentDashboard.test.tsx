@@ -31,7 +31,7 @@ const proc = {
 
 const deliverable = (o: Partial<DeliverableOut> = {}): DeliverableOut => ({
   public_id: 'd1', stage_public_id: 'st1', title: 'Propuesta inicial', instructions: null, mandatory: true, applicable: true, active: true,
-  sort_order: 0, due_date: '2026-11-20', depends_on_public_id: null, accepted_extensions: null, template_file_name: null,
+  sort_order: 0, due_date: '2026-11-20', depends_on_public_id: null, accepted_extensions: null, escalate_group: true, template_file_name: null,
   template_download_url: null, status: 'disponible', is_overdue: false, can_submit: true, submissions_count: 0, current_submission: null, ...o,
 })
 

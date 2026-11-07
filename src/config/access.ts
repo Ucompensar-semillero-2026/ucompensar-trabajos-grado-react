@@ -25,6 +25,8 @@ export const KNOWN_MODULES = [
   'tutor-planes',
   'tutor-revisiones',
   'tutor-estadisticas',
+  'seguimiento',
+  'mis-fechas',
   'tramites',
   'nuevo',
   'buscar',

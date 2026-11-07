@@ -1,8 +1,9 @@
 import {
   LayoutDashboard, FileText, Plus, Search, GitBranch,
-  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy, Flag, Users, ClipboardList, FileCheck2, UserCheck, Lightbulb, Layers, CalendarDays,
+  FolderOpen, BarChart3, Gavel, Building2, Globe2, GraduationCap, Bell, LifeBuoy, Flag, Users, ClipboardList, FileCheck2, UserCheck, Lightbulb, Layers, CalendarDays, BellRing,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
+import { navLabel } from '@/config/navLabels'
 
 // Fuente unica de verdad para el menu -- la usan tanto Sidebar (para
 // pintar los links) como DashboardLayout (para derivar activeSection
@@ -16,22 +17,24 @@ export const NAV_ITEMS: Array<{
   group: 'Principal' | 'Gestión'
   path: string
 }> = [
+  // Etiquetas de ESTE arreglo = nombre original del módulo. Cada perfil ve el suyo según config/navLabels.ts (catálogo único).
   { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, group: 'Principal', path: '/dashboard' },
   { id: 'proceso', label: 'Mi proceso de grado', Icon: Flag, group: 'Principal', path: '/mi-proceso' },
-  { id: 'portafolio', label: 'Portafolio de proyectos', Icon: Layers, group: 'Gestión', path: '/coordinacion/portafolio' },
-  { id: 'calendario', label: 'Calendario académico', Icon: CalendarDays, group: 'Gestión', path: '/coordinacion/calendario' },
-  { id: 'propuestas', label: 'Propuestas estudiantiles', Icon: Lightbulb, group: 'Gestión', path: '/coordinacion/propuestas' },
-  { id: 'asignacion', label: 'Asignación de tutores', Icon: UserCheck, group: 'Gestión', path: '/coordinacion/asignacion' },
   { id: 'tramites', label: 'Mis trámites', Icon: FileText, group: 'Principal', path: '/tramites' },
+  { id: 'portafolio', label: 'Portafolio de proyectos', Icon: Layers, group: 'Principal', path: '/coordinacion/portafolio' },
   { id: 'nuevo', label: 'Nuevo trámite', Icon: Plus, group: 'Principal', path: '/nuevo' },
   { id: 'buscar', label: 'Buscar cédula', Icon: Search, group: 'Principal', path: '/buscar' },
-  { id: 'trazabilidad', label: 'Trazabilidad', Icon: GitBranch, group: 'Gestión', path: '/trazabilidad' },
+  { id: 'propuestas', label: 'Propuestas estudiantiles', Icon: Lightbulb, group: 'Gestión', path: '/coordinacion/propuestas' },
   { id: 'documentos', label: 'Documentos', Icon: FolderOpen, group: 'Gestión', path: '/documentos' },
+  { id: 'seguimiento', label: 'Seguimiento y alertas', Icon: BellRing, group: 'Gestión', path: '/seguimiento' },
+  { id: 'notificaciones', label: 'Notificaciones', Icon: Bell, group: 'Gestión', path: '/notificaciones' },
+  { id: 'calendario', label: 'Calendario académico', Icon: CalendarDays, group: 'Gestión', path: '/coordinacion/calendario' },
+  { id: 'asignacion', label: 'Asignación de tutores', Icon: UserCheck, group: 'Gestión', path: '/coordinacion/asignacion' },
+  { id: 'trazabilidad', label: 'Trazabilidad', Icon: GitBranch, group: 'Gestión', path: '/trazabilidad' },
   { id: 'comites', label: 'Comités', Icon: Gavel, group: 'Gestión', path: '/comites' },
   { id: 'administrativo', label: 'Áreas administrativas', Icon: Building2, group: 'Gestión', path: '/administrativo' },
   { id: 'externo', label: 'Entidades externas', Icon: Globe2, group: 'Gestión', path: '/externo' },
   { id: 'calificaciones', label: 'Calificaciones', Icon: GraduationCap, group: 'Gestión', path: '/calificaciones' },
-  { id: 'notificaciones', label: 'Notificaciones', Icon: Bell, group: 'Gestión', path: '/notificaciones' },
   { id: 'reportes', label: 'Reportes', Icon: BarChart3, group: 'Gestión', path: '/reportes' },
 ]
 
@@ -55,16 +58,17 @@ export const STUDENT_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] 
   {
     label: 'Principal',
     items: [
-      { key: 'inicio', label: 'Inicio', Icon: LayoutDashboard, path: '/dashboard' },
-      { key: 'proceso', label: 'Mi proceso de grado', Icon: Flag, path: '/mi-proceso' },
-      { key: 'tramites', label: 'Mis trámites', Icon: FileText, path: '/tramites', activePaths: ['/tramites', '/trazabilidad'] },
+      { key: 'inicio', label: navLabel('dashboard', 'student', 'Inicio'), Icon: LayoutDashboard, path: '/dashboard' },
+      { key: 'proceso', label: navLabel('proceso', 'student', 'Mi proceso de grado'), Icon: Flag, path: '/mi-proceso' },
+      { key: 'tramites', label: navLabel('tramites', 'student', 'Mis proyectos'), Icon: FileText, path: '/tramites', activePaths: ['/tramites', '/trazabilidad'] },
     ],
   },
   {
     label: 'Seguimiento académico',
     items: [
-      { key: 'propuestas', label: 'Mis propuestas', Icon: Lightbulb, path: '/mis-propuestas' },
-      { key: 'documentos', label: 'Documentos y entregables', Icon: FolderOpen, path: '/documentos' },
+      { key: 'propuestas', label: navLabel('mis-propuestas', 'student', 'Mis propuestas'), Icon: Lightbulb, path: '/mis-propuestas' },
+      { key: 'documentos', label: navLabel('documentos', 'student', 'Mis tareas'), Icon: FolderOpen, path: '/documentos' },
+      { key: 'mis-fechas', label: navLabel('mis-fechas', 'student', 'Importantes'), Icon: BellRing, path: '/mis-fechas' },
       { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
     ],
   },
@@ -79,24 +83,27 @@ export const STUDENT_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] 
 export const TUTOR_NAV_GROUPS: Array<{ label: string; items: StudentNavItem[] }> = [
   {
     label: 'Principal',
-    items: [{ key: 'panel', label: 'Panel del tutor', Icon: LayoutDashboard, path: '/tutor', exact: true }],
+    items: [
+      { key: 'panel', label: navLabel('tutor', 'teacher', 'Inicio'), Icon: LayoutDashboard, path: '/tutor', exact: true },
+      { key: 'trazabilidad', label: navLabel('trazabilidad', 'teacher', 'Seguimiento de proyectos'), Icon: GitBranch, path: '/trazabilidad' },
+      { key: 'proyectos', label: navLabel('tutor-proyectos', 'teacher', 'Proyectos asignados'), Icon: Users, path: '/tutor/proyectos' },
+    ],
   },
   {
+    // Sin módulo de «Propuestas por revisar»: hoy solo el estudiante y Coordinación tienen módulo de propuestas. Los módulos
+    // propios del tutor (planes y estadísticas) conservan su nombre.
     label: 'Seguimiento académico',
     items: [
-      { key: 'proyectos', label: 'Mis proyectos asignados', Icon: Users, path: '/tutor/proyectos' },
-      { key: 'trazabilidad', label: 'Trazabilidad de mis proyectos', Icon: GitBranch, path: '/trazabilidad' },
+      { key: 'revisiones', label: navLabel('tutor-revisiones', 'teacher', 'Entregables de estudiantes'), Icon: FileCheck2, path: '/tutor/revisiones' },
       { key: 'planes', label: 'Planes de trabajo', Icon: ClipboardList, path: '/tutor/planes' },
-      { key: 'revisiones', label: 'Plantillas y revisiones', Icon: FileCheck2, path: '/tutor/revisiones' },
+      { key: 'seguimiento', label: navLabel('seguimiento', 'teacher', 'Fechas y compromisos'), Icon: BellRing, path: '/seguimiento' },
+      { key: 'estadisticas', label: 'Estadísticas e informes', Icon: BarChart3, path: '/tutor/estadisticas' },
+      { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
     ],
   },
   {
-    label: 'Análisis y comunicación',
-    items: [
-      { key: 'estadisticas', label: 'Estadísticas e informes', Icon: BarChart3, path: '/tutor/estadisticas' },
-      { key: 'notificaciones', label: 'Notificaciones', Icon: Bell, path: '/notificaciones' },
-      { key: 'soporte', label: 'Ayuda y soporte', Icon: LifeBuoy, href: SUPPORT_URL },
-    ],
+    label: 'Ayuda',
+    items: [{ key: 'soporte', label: 'Ayuda y soporte', Icon: LifeBuoy, href: SUPPORT_URL }],
   },
 ]
 
@@ -109,6 +116,8 @@ export const TUTOR_ROUTE_SECTIONS: Array<{ prefix: string; exact?: boolean; sect
   { prefix: '/tutor/planes', section: 'tutor-planes' },
   { prefix: '/tutor/revisiones', section: 'tutor-revisiones' },
   { prefix: '/tutor/estadisticas', section: 'tutor-estadisticas' },
+  { prefix: '/seguimiento', section: 'seguimiento' },
+  { prefix: '/mis-fechas', section: 'mis-fechas' },
 ]
 
 export const MODALIDADES = [

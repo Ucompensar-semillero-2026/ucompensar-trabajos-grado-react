@@ -63,11 +63,11 @@ afterEach(() => {
 describe('menú', () => {
   it('shows «Portafolio de proyectos» to coordination only', () => {
     const { unmount } = render(<MemoryRouter><Sidebar user={coordinator} onLogout={() => {}} /></MemoryRouter>)
-    expect(screen.getByRole('button', { name: 'Portafolio de proyectos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Proyectos de grado' })).toBeInTheDocument()
     unmount()
     for (const other of [student, teacher]) {
       const view = render(<MemoryRouter><Sidebar user={other} onLogout={() => {}} /></MemoryRouter>)
-      expect(screen.queryByRole('button', { name: 'Portafolio de proyectos' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Proyectos de grado' })).not.toBeInTheDocument()
       view.unmount()
     }
   })

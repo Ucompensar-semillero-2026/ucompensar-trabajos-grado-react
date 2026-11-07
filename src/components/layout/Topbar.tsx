@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Bell, ChevronDown, Moon, Sun, LogOut } from 'lucide-react'
 import { SearchField } from '@/components/ui/SearchField'
+import { audienceOf, type Audience } from '@/config/navLabels'
 import { roleLabels } from '@/config/roles'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
@@ -12,9 +13,18 @@ interface TopbarProps {
   onSearchChange: (q: string) => void
 }
 
+// Texto del buscador según el perfil (mismos nombres que el menú: tareas y proyectos / entregables / procesos).
+const SEARCH_LABEL: Record<Audience, string> = {
+  student: 'Buscar tareas, documentos o proyectos',
+  teacher: 'Buscar proyectos o entregables',
+  coordination: 'Buscar procesos, proyectos o documentos',
+  other: 'Buscar trámites o documentos',
+}
+
 export function Topbar({ onLogout, searchQuery, onSearchChange }: TopbarProps) {
   const { theme, toggle } = useThemeStore()
   const { currentUser } = useAppStore()
+  const searchLabel = SEARCH_LABEL[audienceOf(currentUser)]
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -44,8 +54,8 @@ export function Topbar({ onLogout, searchQuery, onSearchChange }: TopbarProps) {
   return (
     <header className="relative z-30 flex h-[68px] flex-shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:gap-5 md:px-6">
       <SearchField
-        label="Buscar trámites o documentos"
-        placeholder="Buscar trámites o documentos…"
+        label={searchLabel}
+        placeholder={`${searchLabel}…`}
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         wrapperClassName="min-w-0 flex-1 md:max-w-xl"
