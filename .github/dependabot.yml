@@ -1,0 +1,24 @@
+# Checklist de seguridad #41 (OWASP A06, ISO 27001 A.8.8): GitHub abre un PR hacia develop cuando sale una
+# versión con correcciones de seguridad o una actualización de las dependencias. El CI (lint, pruebas y npm audit)
+# las valida antes de unirlas.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "America/Bogota"
+    open-pull-requests-limit: 5
+    groups:
+      dependencias-menores:
+        update-types: ["minor", "patch"]
+    labels: ["dependencias", "seguridad"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencias"]

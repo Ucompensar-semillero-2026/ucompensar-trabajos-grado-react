@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
+import { Clock3 } from 'lucide-react'
 import { LoginPanel } from './LoginPanel'
+import { clearIdleLogout, peekIdleLogout } from '@/services/sessionFlash'
 import { SSOForm } from './SSOForm'
 import { Logo } from '@/components/ui/Logo'
 
@@ -9,6 +12,11 @@ interface LoginScreenProps {
 
 // Solo Microsoft Entra ID: la plataforma no maneja contraseñas propias.
 export function LoginScreen({ onMicrosoftLogin, microsoftError }: LoginScreenProps) {
+  // Aviso de un solo uso: se lee al montar y se borra, así una recarga posterior no lo repite.
+  const [idleLogout] = useState(peekIdleLogout)
+  useEffect(() => {
+    clearIdleLogout()
+  }, [])
 
   return (
     <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[var(--color-bg)] transition-colors duration-300 md:flex-row">
@@ -35,6 +43,18 @@ export function LoginScreen({ onMicrosoftLogin, microsoftError }: LoginScreenPro
               Accede con tu cuenta institucional de Microsoft
             </p>
           </div>
+
+          {idleLogout && (
+            <div role="status" className="mb-5 flex items-start gap-3 rounded-2xl border border-[#F5D9A8] bg-[#FFF8EC] px-4 py-3.5 text-left">
+              <Clock3 size={20} className="mt-0.5 shrink-0 text-[#B45309]" aria-hidden="true" />
+              <div>
+                <p className="text-[13.5px] font-bold text-[#7A3E06]">Cerramos tu sesión por inactividad</p>
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-[#8A5A1F]">
+                  Pasaron {idleLogout.minutes} minutos sin actividad. Vuelve a entrar para continuar.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="animate-in [&_p]:text-[12px] [&_button]:text-[14px]">
             <SSOForm onMicrosoftLogin={onMicrosoftLogin} error={microsoftError} />

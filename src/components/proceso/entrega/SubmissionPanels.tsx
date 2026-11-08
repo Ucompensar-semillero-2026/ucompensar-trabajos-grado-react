@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { BookOpen, CalendarClock, CheckCircle2, Download, FileText, Info, ListChecks, MessageSquareText, MessageSquareWarning, RefreshCw, Trash2, UploadCloud, XCircle } from 'lucide-react'
+import { BookOpen, CalendarClock, CheckCircle2, Download, FileText, Info, ListChecks, MessageSquareText, MessageSquareWarning, RefreshCw, Trash2, UploadCloud, XCircle, Eye } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { DeliverableOut, DraftOut, DraftWorkspaceOut, SubmissionOut } from '@/services/workplan.service'
@@ -50,7 +50,7 @@ export function TaskInstructionsPanel({ deliverable, workspace, dependencyTitle 
 
 // ── B. Plantilla ─────────────────────────────────────────────────────────────
 
-export function TaskTemplateCard({ deliverable, onDownload }: { deliverable: DeliverableOut; onDownload: () => void }) {
+export function TaskTemplateCard({ deliverable, onDownload, onPreview }: { deliverable: DeliverableOut; onDownload: () => void; onPreview?: () => void }) {
   if (!deliverable.template_file_name) return null
   return (
     <PanelCard title="Plantilla de la actividad" Icon={FileText}>
@@ -60,9 +60,16 @@ export function TaskTemplateCard({ deliverable, onDownload }: { deliverable: Del
           <p className="truncate text-[13.5px] font-bold text-[var(--color-secondary)]" title={deliverable.template_file_name}>{deliverable.template_file_name}</p>
           <p className="text-[12px] text-[var(--color-text-muted)]">Formato {extensionOf(deliverable.template_file_name).replace('.', '').toUpperCase() || 'archivo'} · proporcionada por tu tutor</p>
         </div>
-        <button type="button" onClick={onDownload} className={cn(actionBtn, 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-secondary)] hover:border-[#1565C0]')}>
-          <Download size={14} aria-hidden="true" />Descargar plantilla
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {onPreview && PREVIEWABLE.includes(extensionOf(deliverable.template_file_name)) && (
+            <button type="button" onClick={onPreview} className={cn(actionBtn, 'border-[#1565C0]/40 bg-[#1565C0]/[0.06] text-[#0E4F8C] hover:border-[#1565C0] dark:text-blue-200')}>
+              <Eye size={14} aria-hidden="true" />Ver plantilla
+            </button>
+          )}
+          <button type="button" onClick={onDownload} className={cn(actionBtn, 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-secondary)] hover:border-[#1565C0]')}>
+            <Download size={14} aria-hidden="true" />Descargar plantilla
+          </button>
+        </div>
       </div>
     </PanelCard>
   )
@@ -137,7 +144,7 @@ export function TutorObservationsPanel({ submissions }: { submissions: Submissio
 }
 
 /** Versión formal más reciente (lo que ve el tutor). */
-export function PublishedCard({ submission, onDownload, justPublished }: { submission: SubmissionOut; onDownload: () => void; justPublished: boolean }) {
+export function PublishedCard({ submission, onDownload, onPreview, justPublished }: { submission: SubmissionOut; onDownload: () => void; onPreview?: () => void; justPublished: boolean }) {
   const tone = SUBMISSION_TONE[submission.status]
   const lastReview = submission.reviews[submission.reviews.length - 1]
   return (
@@ -151,7 +158,12 @@ export function PublishedCard({ submission, onDownload, justPublished }: { submi
           <span><strong>{lastReview.reviewer.full_name}:</strong> {lastReview.comment}</span>
         </p>
       )}
-      <button type="button" onClick={onDownload} className={cn(actionBtn, 'mt-3 border-[var(--color-border)] bg-white text-[var(--color-secondary)] hover:border-[#1565C0]')}><Download size={14} aria-hidden="true" />Descargar versión {submission.version}</button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {onPreview && PREVIEWABLE.includes(extensionOf(submission.file_name)) && (
+          <button type="button" onClick={onPreview} className={cn(actionBtn, 'border-[var(--color-border)] bg-white text-[var(--color-secondary)] hover:border-[#1565C0]')}><Eye size={14} aria-hidden="true" />Ver versión {submission.version}</button>
+        )}
+        <button type="button" onClick={onDownload} className={cn(actionBtn, 'border-[var(--color-border)] bg-white text-[var(--color-secondary)] hover:border-[#1565C0]')}><Download size={14} aria-hidden="true" />Descargar versión {submission.version}</button>
+      </div>
     </div>
   )
 }

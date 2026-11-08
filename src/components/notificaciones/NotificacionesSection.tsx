@@ -86,7 +86,7 @@ export function NotificacionesSection() {
   if (error) return <p className="text-[12.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>
 
   return (
-    <div className="animate-in flex flex-col gap-4 max-w-[900px]">
+    <div className="animate-in flex w-full min-w-0 flex-col gap-4">
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <Bell size={16} className="text-[var(--color-primary)]" />

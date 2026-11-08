@@ -72,3 +72,20 @@ describe('request con access_token vencido', () => {
     expect(useAppStore.getState().isAuthenticated).toBe(true)
   })
 })
+
+describe('mensajes de error', () => {
+  it('muestra el mensaje del servidor cuando viene en español', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(json(422, { detail: 'Revisa los datos enviados: el campo «title» es obligatorio.' }))
+    await expect(request('/processes')).rejects.toMatchObject({ status: 422, message: 'Revisa los datos enviados: el campo «title» es obligatorio.' })
+  })
+
+  it.each([
+    [422, { detail: [{ loc: ['body', 'title'], msg: 'Field required' }] }, 'Revisa los datos enviados.'],
+    [429, { error: 'Rate limit exceeded' }, 'Hiciste demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.'],
+    [502, null, 'El servidor tuvo un problema. Intenta de nuevo en unos minutos.'],
+    [403, {}, 'No tienes permiso para hacer esto.'],
+  ])('sin mensaje legible (%i) ya no dice «Error de conexión»', async (status, body, expected) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(json(status, body))
+    await expect(request('/processes')).rejects.toMatchObject({ status, message: expected })
+  })
+})

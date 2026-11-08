@@ -17,6 +17,8 @@ export interface BackendUser {
 export interface MeOut extends BackendUser {
   roles: string[]
   modules: string[]
+  /** Minutos sin actividad tras los que el servidor cierra la sesión. */
+  idle_timeout_minutes?: number
 }
 
 export interface ModalityOut {

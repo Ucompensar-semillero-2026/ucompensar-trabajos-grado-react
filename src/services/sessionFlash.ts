@@ -76,3 +76,15 @@ export function subscribeFlash(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
+
+// ── Cierre por inactividad ────────────────────────────────────────────────────
+// Marca de un solo uso para que el login explique por qué se cerró la sesión. Solo guarda los minutos.
+
+const IDLE_KEY = 'ucomp_idle_logout'
+
+export function markIdleLogout(minutes: number) {
+  write(IDLE_KEY, { minutes })
+}
+
+export const peekIdleLogout = (): { minutes: number } | null => read<{ minutes: number }>(IDLE_KEY)
+export const clearIdleLogout = () => remove(IDLE_KEY)

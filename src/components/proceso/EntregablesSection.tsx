@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, FolderOpen, History, MessageSquareText, PanelRightOpen } from 'lucide-react'
-import { Badge, Button, Card, EmptyState } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, LoadError, errorMessage } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
 import { filePaths } from '@/services/files.service'
 import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
@@ -40,22 +40,27 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [showObservations, setShowObservations] = useState(false)
   const [history, setHistory] = useState<SubmissionOut[] | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
   const current = d.current_submission
   const dependency = d.depends_on_public_id ? allDeliverables(plan).find((x) => x.public_id === d.depends_on_public_id) : null
   const observations = current?.reviews ?? []
 
+  const loadHistory = async () => {
+    if (!accessToken) return
+    setHistoryError(null)
+    try {
+      setHistory(await workPlanApi.listSubmissions(accessToken, processId, d.public_id))
+    } catch (err) {
+      setHistoryError(errorMessage(err, 'No se pudo cargar el historial de versiones.'))
+    }
+  }
+
   const toggleHistory = async () => {
     const next = !showHistory
     setShowHistory(next)
-    if (next && history === null && accessToken) {
-      try {
-        setHistory(await workPlanApi.listSubmissions(accessToken, processId, d.public_id))
-      } catch {
-        setHistory([])
-      }
-    }
+    if (next && history === null) await loadHistory()
   }
 
   return (
@@ -204,7 +209,9 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
 
       {showHistory && (
         <ul className="flex flex-col gap-2 border-t border-[var(--color-border)] pt-3">
-          {history === null ? (
+          {historyError ? (
+            <li><LoadError message={historyError} onRetry={() => void loadHistory()} /></li>
+          ) : history === null ? (
             <li className="text-[12px] text-[var(--color-text-muted)]">Cargando historial…</li>
           ) : (
             history.map((s) => (

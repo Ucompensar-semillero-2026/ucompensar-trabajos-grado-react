@@ -152,7 +152,7 @@ export function DetalleDemoTrazabilidad({ tramiteId }: { tramiteId: string }) {
     ['reuniones', 'Reuniones'],
   ]
 
-  return <div className="max-w-6xl space-y-5 animate-fadeIn">
+  return <div className="w-full min-w-0 space-y-5 animate-fadeIn">
     <Link to="/trazabilidad" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary)] hover:underline"><ArrowLeft size={14} aria-hidden="true" />Volver a trazabilidad</Link>
     <ResumenTramite tramite={tramite} />
     <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Ejemplo demostrativo: los cambios de estado son de prueba; comentarios y reuniones se guardan solo en este navegador.</p>

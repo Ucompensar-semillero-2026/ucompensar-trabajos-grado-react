@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Button, Badge , EmptyState} from '@/components/ui'
+import { Card, Button, Badge, EmptyState, LoadError, errorMessage } from '@/components/ui'
 import { Select } from '@/components/ui/Input'
 import { Globe2, PlusCircle, FileSignature } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -33,6 +33,8 @@ export function ExternoSection() {
     observations: '',
   })
   const [approvals, setApprovals] = useState<ExternalApprovalOut[]>([])
+  // Error al cargar los avales: se muestra con su causa en vez de una lista vacía.
+  const [approvalsError, setApprovalsError] = useState<string | null>(null)
   const [isRegistering, setIsRegistering] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
@@ -61,10 +63,12 @@ export function ExternoSection() {
       setApprovals([])
       return
     }
+    setApprovalsError(null)
     try {
       setApprovals(await externalApi.listProcessApprovals(accessToken, processId))
-    } catch {
+    } catch (err) {
       setApprovals([])
+      setApprovalsError(errorMessage(err, 'No se pudieron cargar los avales externos de este trámite.'))
     }
   }
 
@@ -266,7 +270,9 @@ export function ExternoSection() {
                 <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-3">
                   Avales externos de este trámite
                 </h4>
-                {approvals.length === 0 ? (
+                {approvalsError ? (
+                  <LoadError message={approvalsError} onRetry={() => void loadApprovalsForProcess(approvalForm.processId)} />
+                ) : approvals.length === 0 ? (
                   <p className="text-[12px] text-[var(--color-text-dim)]">Sin avales externos todavía.</p>
                 ) : (
                   <div className="flex flex-col gap-2">

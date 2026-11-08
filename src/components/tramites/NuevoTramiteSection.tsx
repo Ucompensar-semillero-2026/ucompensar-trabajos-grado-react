@@ -69,7 +69,7 @@ export function NuevoTramiteSection() {
 
   if (currentUser && !hasModule(currentUser, 'nuevo')) {
     return (
-      <div className="max-w-[700px]">
+      <div className="mx-auto w-full max-w-[760px]">
         <p className="text-sm text-[var(--color-text-dim)]">
           Solo los estudiantes pueden radicar un nuevo trámite. Tu cuenta es de <strong>{roleLabels(currentUser.roles).join(', ')}</strong>.
         </p>
@@ -78,7 +78,7 @@ export function NuevoTramiteSection() {
   }
 
   return (
-    <div className="animate-fade-in space-y-4 max-w-[700px]">
+    <div className="animate-fade-in mx-auto w-full max-w-[760px] space-y-4">
       <Card>
         <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] -mx-4 -mt-4 mb-6 px-5 py-4 rounded-t-xl flex items-center gap-2.5 shadow-md">
           <PlusCircle size={18} stroke="white" />

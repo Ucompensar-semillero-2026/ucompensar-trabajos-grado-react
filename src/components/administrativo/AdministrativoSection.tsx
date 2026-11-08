@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Button, Badge , EmptyState} from '@/components/ui'
+import { Card, Button, Badge, EmptyState, LoadError, errorMessage } from '@/components/ui'
 import { Select } from '@/components/ui/Input'
 import { Building2, UserCog, Stamp } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -39,6 +39,8 @@ export function AdministrativoSection() {
     observations: '',
   })
   const [approvals, setApprovals] = useState<AdministrativeApprovalOut[]>([])
+  // Error al cargar los avales: se muestra con su causa en vez de una lista vacía.
+  const [approvalsError, setApprovalsError] = useState<string | null>(null)
   const [isSigning, setIsSigning] = useState(false)
   const [signError, setSignError] = useState<string | null>(null)
   const [signSuccess, setSignSuccess] = useState<string | null>(null)
@@ -72,11 +74,13 @@ export function AdministrativoSection() {
       setApprovals([])
       return
     }
+    setApprovalsError(null)
     try {
       const data = await administrativeApi.listProcessApprovals(accessToken, processId)
       setApprovals(data)
-    } catch {
+    } catch (err) {
       setApprovals([])
+      setApprovalsError(errorMessage(err, 'No se pudieron cargar los avales de este trámite.'))
     }
   }
 
@@ -237,7 +241,9 @@ export function AdministrativoSection() {
                 <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wide mb-3">
                   Avales registrados para este trámite
                 </h4>
-                {approvals.length === 0 ? (
+                {approvalsError ? (
+                  <LoadError message={approvalsError} onRetry={() => void loadApprovalsForProcess(form.processId)} />
+                ) : approvals.length === 0 ? (
                   <p className="text-[12px] text-[var(--color-text-dim)]">Sin avales todavía.</p>
                 ) : (
                   <div className="flex flex-col gap-2">

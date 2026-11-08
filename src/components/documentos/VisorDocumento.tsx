@@ -100,6 +100,19 @@ function neutralizeLinks(container: HTMLElement) {
   })
 }
 
+/**
+ * Un .docx sin tamaño de página ni márgenes (p. ej. generado por otra herramienta) se vería como una franja angosta
+ * pegada al texto. Se le da la medida de una hoja carta (816 px a 96 ppp) y márgenes de 2,5 cm; si el documento trae
+ * los suyos, se respetan.
+ */
+function paperize(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>('section.docx').forEach((page) => {
+    if (!page.style.width) page.style.width = 'min(100%, 816px)'
+    if (!page.style.minHeight) page.style.minHeight = 'min(1056px, 75vh)'
+    if (!page.style.paddingLeft) page.style.padding = '72px 80px'
+  })
+}
+
 function DocxViewer({ blob }: { blob: Blob }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -113,13 +126,13 @@ function DocxViewer({ blob }: { blob: Blob }) {
         if (cancelled || !container) return
         container.replaceChildren()
         await renderAsync(blob, container, undefined, {
-          className: 'docx-preview-rendered',
           inWrapper: true,
           breakPages: true,
           useBase64URL: true,
         })
         if (cancelled) return
         neutralizeLinks(container)
+        paperize(container)
         setState('ready')
       })
       .catch(() => {
@@ -131,13 +144,13 @@ function DocxViewer({ blob }: { blob: Blob }) {
   }, [blob])
 
   return (
-    <div className="relative h-full w-full overflow-auto bg-zinc-800/40 p-3 md:p-8">
+    <div className="relative h-full w-full overflow-auto bg-slate-100 dark:bg-slate-900">
       {state === 'loading' && <div className="absolute inset-0"><Spinner label="Preparando la vista previa del documento Word…" /></div>}
       {state === 'error' && <div className="absolute inset-0 bg-[var(--color-surface)]"><Notice icon="alert" title="No se pudo mostrar la vista previa de este documento Word" text="Puedes descargarlo para abrirlo en tu equipo." /></div>}
       <div
         ref={containerRef}
         data-testid="docx-container"
-        className="mx-auto w-full max-w-4xl text-zinc-900 [&_.docx-wrapper]:bg-transparent [&_.docx-wrapper]:p-0 [&_.docx]:mb-8 [&_.docx]:bg-white [&_.docx]:shadow-xl"
+        className="min-h-full text-zinc-900 [&_.docx-wrapper]:!bg-transparent [&_.docx-wrapper]:!px-3 [&_.docx-wrapper]:!py-6 sm:[&_.docx-wrapper]:!px-8 sm:[&_.docx-wrapper]:!py-8 [&_.docx-wrapper>section.docx]:!mb-6 [&_.docx-wrapper>section.docx]:max-w-full [&_.docx-wrapper>section.docx]:rounded-[3px] [&_.docx-wrapper>section.docx]:!shadow-[0_1px_3px_rgba(15,23,42,0.08),0_12px_32px_rgba(15,23,42,0.12)]"
       />
     </div>
   )
@@ -223,6 +236,14 @@ function XlsxViewer({ blob, maxRows }: { blob: Blob; maxRows: number }) {
   )
 }
 
+const KIND_LABEL: Record<ViewerKind, string> = {
+  pdf: 'Documento PDF',
+  image: 'Imagen',
+  docx: 'Documento Word',
+  xlsx: 'Hoja de cálculo Excel',
+  none: 'Archivo',
+}
+
 // ── Componente principal ─────────────────────────────────────────────────────
 
 type LoadState =
@@ -240,12 +261,14 @@ export function VisorDocumento({ file, maxSheetRows = MAX_SHEET_ROWS }: { file: 
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   // La ruta del archivo la confirma preview-info (file_url); hasta entonces, la de FileRef.
   const [downloadPath, setDownloadPath] = useState(file.path)
+  const [meta, setMeta] = useState<{ mime: string; size: number | null } | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
   useEffect(() => {
     setDownloadError(null)
     setDownloadPath(file.path)
+    setMeta(null)
     if (!accessToken) {
       setState({ status: 'error', message: 'Tu sesión terminó. Vuelve a iniciar sesión.' })
       return
@@ -259,6 +282,7 @@ export function VisorDocumento({ file, maxSheetRows = MAX_SHEET_ROWS }: { file: 
       const info = await fetchPreviewInfo(accessToken, file, signal)
       const path = apiPath(info.file_url)
       setDownloadPath(path)
+      setMeta({ mime: info.mime, size: info.size })
       if (info.mode === 'missing') return { status: 'missing', message: info.message ?? MISSING_FILE_MESSAGE }
       if (info.mode === 'embed' && info.embed_url) return { status: 'embed', url: info.embed_url }
       // 2) inline: el visor sale del tipo que informa el backend, no de la extensión.
@@ -323,14 +347,15 @@ export function VisorDocumento({ file, maxSheetRows = MAX_SHEET_ROWS }: { file: 
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2">
-        <p className="min-w-0 truncate text-[12.5px] text-[var(--color-text-muted)]">{file.fileName}</p>
+        <p className="min-w-0 truncate text-[12.5px] font-medium text-[var(--color-text-muted)]">
+          {meta ? [KIND_LABEL[viewerKindForMime(meta.mime)], meta.size != null ? formatBytes(meta.size) : null].filter(Boolean).join(' · ') : 'Cargando…'}
+        </p>
         <div className="flex items-center gap-2">
           {downloadError && <span role="alert" className="text-[12px] font-medium text-red-700">{downloadError}</span>}
           {/* Siempre hay Descargar; si el archivo falta, queda deshabilitado (no hay qué bajar). */}
           <Button
             type="button"
             size="sm"
-            variant="outline"
             disabled={downloading || missing}
             title={missing ? MISSING_FILE_MESSAGE : undefined}
             onClick={() => void handleDownload()}

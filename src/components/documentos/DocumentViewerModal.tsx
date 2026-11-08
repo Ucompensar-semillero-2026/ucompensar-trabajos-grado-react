@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Maximize2, Minimize2, FileText, FileSpreadsheet, Image as ImageIcon, File as FileGeneric, Check } from 'lucide-react'
 import { Badge, Button } from '@/components/ui'
 import { VisorDocumento } from './VisorDocumento'
@@ -70,25 +71,43 @@ export function DocumentViewerModal({
   // Keyboard shortcut: Escape to close
   useEffect(() => {
     if (!isOpen) return
+    // En fase de captura y sin propagar Escape/Tab: el visor puede abrirse encima de otra ventana (p. ej. la de
+    // entrega de "Mis tareas"), que también escucha el teclado; Escape debe cerrar solo el visor.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.stopPropagation()
         if (isRejecting) {
           setIsRejecting(false)
         } else {
           onClose()
         }
+      } else if (e.key === 'Tab') {
+        e.stopPropagation()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [isOpen, isRejecting, onClose])
+
+  // Mientras el visor está abierto, la página de atrás no se desplaza.
+  useEffect(() => {
+    if (!isOpen) return
+    const previous = window.document.body.style.overflow
+    window.document.body.style.overflow = 'hidden'
+    return () => {
+      window.document.body.style.overflow = previous
+    }
+  }, [isOpen])
 
   if (!isOpen || !doc) return null
 
-  return (
+  // Portal al <body>: si el visor se dibujara dentro de la página, un contenedor con animación (transform) lo
+  // desplazaría y no quedaría centrado en la pantalla ni cubriría el menú. z-[110]: por encima de la ventana de
+  // entrega de "Mis tareas" (z-[100]), desde la que también se abre.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in p-3 md:p-6"
-      onClick={(e) => {
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-[#031C34]/70 p-2 backdrop-blur-[3px] sm:p-5"
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
@@ -96,64 +115,61 @@ export function DocumentViewerModal({
         role="dialog"
         aria-modal="true"
         aria-label={`Documento ${doc.file_name}`}
-        className={`bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
-          isFullscreen ? 'w-full h-full max-w-none rounded-none' : 'w-full max-w-5xl h-[90vh]'
+        className={`flex flex-col overflow-hidden bg-[var(--color-surface)] shadow-2xl ring-1 ring-black/10 transition-[width,height] duration-200 ${
+          isFullscreen ? 'h-full w-full rounded-none' : 'h-[min(92vh,1000px)] w-full max-w-6xl rounded-2xl'
         }`}
       >
-        {/* Modal Top Header */}
-        <div className="px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--color-surface)] flex items-center justify-between gap-3 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] flex-shrink-0">
+        <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
               <FileIcon fileName={doc.file_name} />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-[14px] font-bold text-[var(--color-text)] truncate max-w-xs md:max-w-md">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h2 className="max-w-[60vw] truncate font-display text-[15px] font-bold text-[var(--color-secondary)] sm:max-w-md" title={doc.file_name}>
                   {doc.file_name}
                 </h2>
-                {doc.status && (
-                  <Badge variant={STATUS_BADGE[doc.status].variant}>
-                    {STATUS_BADGE[doc.status].label}
-                  </Badge>
-                )}
+                {doc.status && <Badge variant={STATUS_BADGE[doc.status].variant}>{STATUS_BADGE[doc.status].label}</Badge>}
                 {doc.version && (
-                  <span className="text-[11px] font-bold text-[var(--color-text-dim)] bg-[var(--color-bg)] px-1.5 py-0.5 rounded border border-[var(--color-border)]">
+                  <span className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-text-dim)]">
                     v{doc.version}
                   </span>
                 )}
               </div>
-              <p className="text-[11.5px] text-[var(--color-text-muted)] truncate mt-0.5">
-                {doc.studentName && <span>Estudiante: <strong className="text-[var(--color-text)]">{doc.studentName}</strong> · </span>}
-                {doc.documentType && <span>Tipo: {doc.documentType}</span>}
-              </p>
+              {(doc.studentName || doc.documentType) && (
+                <p className="mt-0.5 truncate text-[12px] text-[var(--color-text-muted)]">
+                  {doc.studentName && <span>Estudiante: <strong className="font-semibold text-[var(--color-text)]">{doc.studentName}</strong></span>}
+                  {doc.studentName && doc.documentType && <span> · </span>}
+                  {doc.documentType && <span>Tipo: {doc.documentType}</span>}
+                </p>
+              )}
             </div>
           </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-1">
             <button
               type="button"
               aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-              onClick={() => setIsFullscreen((f) => !f)}
-              className="p-2 rounded-lg text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors"
               title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              onClick={() => setIsFullscreen((f) => !f)}
+              className="hidden rounded-lg p-2 text-[var(--color-text-dim)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-text)] sm:inline-flex"
             >
-              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              {isFullscreen ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
             </button>
             <button
               type="button"
               aria-label="Cerrar visor"
+              title="Cerrar (Esc)"
               onClick={onClose}
-              className="p-2 rounded-lg text-[var(--color-text-dim)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-              title="Cerrar visor (Esc)"
+              className="rounded-lg p-2 text-[var(--color-text-dim)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
             >
-              <X size={18} />
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Modal Main Viewport */}
-        <div className="flex-1 overflow-hidden relative bg-[var(--color-bg)]/20"><VisorDocumento file={{ path: doc.file_path, fileName: doc.file_name }} /></div>
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <VisorDocumento file={{ path: doc.file_path, fileName: doc.file_name }} />
+        </div>
 
         {/* Modal Review Bottom Bar (if role can review & status is pendiente) */}
         {canReview && doc.status === 'pendiente' && (
@@ -224,6 +240,7 @@ export function DocumentViewerModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    window.document.body,
   )
 }
