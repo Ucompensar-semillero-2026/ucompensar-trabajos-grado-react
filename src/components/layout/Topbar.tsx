@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Bell, ChevronDown, Moon, Sun, LogOut } from 'lucide-react'
+import { ChevronDown, Moon, Sun, LogOut } from 'lucide-react'
+import { NotificationBell } from './NotificationBell'
 import { SearchField } from '@/components/ui/SearchField'
 import { audienceOf, type Audience } from '@/config/navLabels'
 import { roleLabels } from '@/config/roles'
@@ -62,10 +62,8 @@ export function Topbar({ onLogout, searchQuery, onSearchChange }: TopbarProps) {
       />
 
       <div className="ml-auto flex items-center gap-1 md:gap-2">
-        {/* Sin indicador de novedades: el backend no expone un estado leído/no leído */}
-        <Link to="/notificaciones" className={iconButton} aria-label="Ver notificaciones" title="Notificaciones">
-          <Bell size={18} aria-hidden />
-        </Link>
+        {/* Campana: no leídos, panel con los últimos avisos y avisos emergentes */}
+        <NotificationBell className={iconButton} />
 
         <button type="button" onClick={toggle} className={iconButton} title="Alternar tema" aria-label="Alternar tema">
           {theme === 'dark' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
