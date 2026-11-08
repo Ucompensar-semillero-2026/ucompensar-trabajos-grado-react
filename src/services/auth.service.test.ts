@@ -42,6 +42,6 @@ describe('authApi.verifyIdentity', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
 
     await expect(authApi.verifyIdentity('active-access-token', 'fresh-password', 'student-public-id'))
-      .rejects.toMatchObject({ status: 0, message: 'No se pudo conectar con el servidor' })
+      .rejects.toMatchObject({ status: 0, message: 'No se pudo conectar con el servidor. Revisa tu conexión a internet.' })
   })
 })
