@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
+import { DEFAULT_PRIVACY_POLICY_URL } from '@/config/privacy'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui'
@@ -338,7 +339,13 @@ export function IdeaProposalSection({ modality, returnPath = PROPOSALS_CATALOG_P
             {fieldErrors.confirm && <p className="-mt-3 text-xs font-medium text-red-700">{fieldErrors.confirm}</p>}
             <label className="flex items-start gap-3 text-sm text-[#172B3A]">
               <input type="checkbox" className="mt-1 h-4 w-4 accent-[#FF6B35]" checked={draft.policy} onChange={(e) => set('policy', e.target.checked)} />
-              Acepto el tratamiento de mis datos personales conforme a la política institucional de UCompensar.
+              <span>
+                Acepto el tratamiento de mis datos personales conforme a la{' '}
+                <a href={DEFAULT_PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0876B9] underline underline-offset-2">
+                  política de tratamiento de datos de UCompensar
+                </a>
+                . Guardamos la fecha de tu aceptación como constancia.
+              </span>
             </label>
             {fieldErrors.policy && <p className="-mt-3 text-xs font-medium text-red-700">{fieldErrors.policy}</p>}
 
