@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ArrowLeft, CheckCircle2, Cloud, CloudOff, FileText, Inbox, Loader2, X, XCircle } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAppStore } from '@/stores/app.store'
+import { filePaths } from '@/services/files.service'
+import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
 import { resolveFileUrl } from '@/services/http'
 import { workPlanApi, type DeliverableOut, type StageOut } from '@/services/workplan.service'
 import type { ExtensionOut } from '@/services/monitoring.service'
@@ -38,6 +40,8 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
   const ws = useSubmissionWorkspace(accessToken, processId, d.public_id)
   const [confirming, setConfirming] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Archivo abierto en el visor (borrador, plantilla o versión entregada): se ve sin descargarlo.
+  const [viewing, setViewing] = useState<ViewerDocument | null>(null)
   const workspace = ws.workspace
   const state = attemptState(workspace)
   const draft = workspace?.current_draft ?? null
@@ -132,7 +136,11 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-5">
             <TaskInstructionsPanel deliverable={d} workspace={workspace} dependencyTitle={dependencyTitle} />
-            <TaskTemplateCard deliverable={d} onDownload={() => void downloadTemplate()} />
+            <TaskTemplateCard
+              deliverable={d}
+              onDownload={() => void downloadTemplate()}
+              onPreview={() => d.template_file_name && setViewing({ file_name: d.template_file_name, file_path: filePaths.template(processId, d.public_id), documentType: `Plantilla · ${d.title}` })}
+            />
             <PanelCard title="Mi entrega" Icon={Inbox} className="border-2 border-[#0E6B9C]/30">
               <div className="space-y-4">
                 {ws.notice && (
@@ -140,7 +148,7 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
                     {ws.notice.kind === 'ok' ? <CheckCircle2 size={16} aria-hidden="true" className="mt-0.5 shrink-0" /> : <XCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />}{ws.notice.text}
                   </p>
                 )}
-                {last && !draft && <PublishedCard submission={last} justPublished={ws.published?.public_id === last.public_id} onDownload={() => void ws.openFresh({ kind: 'submission', publicId: last.public_id })} />}
+                {last && !draft && <PublishedCard submission={last} justPublished={ws.published?.public_id === last.public_id} onPreview={() => setViewing({ file_name: last.file_name, file_path: filePaths.submission(processId, last.public_id), documentType: d.title, version: last.version })} onDownload={() => void ws.openFresh({ kind: 'submission', publicId: last.public_id })} />}
                 {draft && (
                   confirmDelete ? (
                     <div role="group" aria-label="Confirmar eliminación" className="rounded-2xl border-2 border-red-400 bg-red-50 p-4 text-[13px] dark:bg-red-500/10">
@@ -152,7 +160,7 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
                       </div>
                     </div>
                   ) : (
-                    <DraftFileCard draft={draft} disabled={busy} onPreview={() => void ws.openFresh({ kind: 'draft' })} onDownload={() => void ws.openFresh({ kind: 'draft' })} onDelete={() => setConfirmDelete(true)} />
+                    <DraftFileCard draft={draft} disabled={busy} onPreview={() => setViewing({ file_name: draft.file_name, file_path: filePaths.draft(processId, d.public_id), documentType: `Borrador (no entregado) · ${d.title}`, version: draft.version })} onDownload={() => void ws.openFresh({ kind: 'draft' })} onDelete={() => setConfirmDelete(true)} />
                   )
                 )}
                 {!draft && !last && !ws.upload && <p className="text-[13px] text-[var(--color-text-muted)]">Aún no has cargado tu archivo para esta actividad.</p>}
@@ -186,6 +194,7 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
           onConfirm={() => void confirmPublish()}
         />
       )}
+      <DocumentViewerModal isOpen={viewing !== null} onClose={() => setViewing(null)} document={viewing} />
     </SubmissionModalShell>
   )
 }

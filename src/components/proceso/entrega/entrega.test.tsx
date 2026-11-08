@@ -9,6 +9,10 @@ vi.mock('@/services/workplan.service', async (importOriginal) => ({
   workPlanApi: { get: vi.fn(), draftWorkspace: vi.fn(), saveDraft: vi.fn(), deleteDraft: vi.fn(), publishDraft: vi.fn() },
 }))
 
+// El visor tiene sus propias pruebas; aquí solo importa qué archivo se le pide mostrar.
+vi.mock('@/components/documentos/VisorDocumento', () => ({
+  VisorDocumento: ({ file }: { file: { path: string; fileName: string } }) => <p data-testid="visor">{file.fileName} @ {file.path}</p>,
+}))
 import { ApiError } from '@/services/http'
 import { workPlanApi } from '@/services/workplan.service'
 import { TaskSubmissionModal } from './TaskSubmissionModal'
@@ -169,5 +173,65 @@ describe('modal de entrega', () => {
     await screen.findByText(/Guardando borrador/)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('visor en «Mis tareas»', () => {
+  const renderModal = (d = deliverable(), onClose = vi.fn()) => {
+    render(<TaskSubmissionModal processId="p1" deliverable={d} stage={stage} dependencyTitle={null} planPublishedAt="2026-09-15T10:00:00" onClose={onClose} onSubmitted={vi.fn()} />)
+    return { onClose }
+  }
+
+  it('el estudiante ve su borrador (también Word) ANTES de entregarlo, por la ruta privada del borrador', async () => {
+    const user = userEvent.setup()
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ current_draft: draft({ file_name: 'avance.docx', version: 2 }) }))
+    renderModal()
+
+    await user.click(await screen.findByRole('button', { name: /Vista previa/ }))
+    const viewer = screen.getByRole('dialog', { name: 'Documento avance.docx' })
+    expect(within(viewer).getByTestId('visor')).toHaveTextContent('avance.docx @ /processes/p1/work-plan/deliverables/d1/draft/file')
+    expect(within(viewer).getByText(/Borrador \(no entregado\)/)).toBeInTheDocument()
+    expect(within(viewer).getByText('v2')).toBeInTheDocument()
+  })
+
+  it('la plantilla se puede ver sin descargarla', async () => {
+    const user = userEvent.setup()
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace())
+    renderModal(deliverable({ template_file_name: 'Ficha anteproyecto.docx', template_download_url: 'https://files.example/t.docx?sig=1' }))
+
+    await user.click(await screen.findByRole('button', { name: /Ver plantilla/ }))
+    expect(screen.getByTestId('visor')).toHaveTextContent('Ficha anteproyecto.docx @ /processes/p1/work-plan/deliverables/d1/template/file')
+    expect(screen.getByRole('button', { name: /Descargar plantilla/ })).toBeInTheDocument()
+  })
+
+  it('la versión entregada también se ve desde su tarjeta', async () => {
+    const user = userEvent.setup()
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ submissions: [submission()] }))
+    renderModal(deliverable({ status: 'en_revision', submissions_count: 1 }))
+
+    await user.click(await screen.findByRole('button', { name: /Ver versión 1/ }))
+    expect(screen.getByTestId('visor')).toHaveTextContent('problema.pdf @ /processes/p1/work-plan/submissions/sub1/file')
+  })
+
+  it('un formato sin vista previa (.pptx) solo ofrece descargar', async () => {
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ current_draft: draft({ file_name: 'sustentacion.pptx' }) }))
+    renderModal()
+    expect(await screen.findByText('sustentacion.pptx')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Vista previa/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Descargar$/ })).toBeInTheDocument()
+  })
+
+  it('Esc cierra solo el visor y deja abierta la ventana de entrega', async () => {
+    const user = userEvent.setup()
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ current_draft: draft() }))
+    const { onClose } = renderModal()
+
+    await user.click(await screen.findByRole('button', { name: /Vista previa/ }))
+    expect(screen.getByRole('dialog', { name: 'Documento problema.pdf' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Documento problema.pdf' })).not.toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /Vista previa/ })).toBeInTheDocument()
   })
 })

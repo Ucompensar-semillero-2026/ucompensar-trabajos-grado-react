@@ -11,6 +11,8 @@ export const filePaths = {
   document: (documentId: string) => `/documents/${documentId}/file`,
   submission: (processId: string, submissionId: string) => `/processes/${processId}/work-plan/submissions/${submissionId}/file`,
   template: (processId: string, deliverableId: string) => `/processes/${processId}/work-plan/deliverables/${deliverableId}/template/file`,
+  /** Borrador vigente del estudiante (solo él lo ve), para revisarlo antes de entregar. */
+  draft: (processId: string, deliverableId: string) => `/processes/${processId}/work-plan/deliverables/${deliverableId}/draft/file`,
 }
 
 /** Lo que el visor necesita para pedir y nombrar un archivo. */
