@@ -35,6 +35,19 @@ export function formatRelativeDate(iso: string): string {
   return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short' }).format(date)
 }
 
+/** «ahora», «hace 5 min», «hace 2 h», «ayer», «hace 3 d» o la fecha (campana de notificaciones). */
+export function timeAgo(iso: string, now: Date = new Date()): string {
+  const minutes = Math.floor((now.getTime() - parseUtc(iso).getTime()) / 60_000)
+  if (minutes < 1) return 'ahora'
+  if (minutes < 60) return `hace ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `hace ${hours} h`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'ayer'
+  if (days < 7) return `hace ${days} d`
+  return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short' }).format(parseUtc(iso))
+}
+
 export function daysSince(iso: string): number {
   return Math.floor((Date.now() - parseUtc(iso).getTime()) / 86_400_000)
 }
