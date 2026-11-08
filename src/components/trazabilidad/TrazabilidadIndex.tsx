@@ -84,7 +84,7 @@ export function TrazabilidadIndex() {
   })
 
   return (
-    <div className="max-w-6xl space-y-5 animate-fadeIn">
+    <div className="w-full min-w-0 space-y-5 animate-fadeIn">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="section-title">{isFollowUp ? 'Seguimiento de proyectos' : isStudent ? 'Trazabilidad de mis proyectos' : 'Trazabilidad de trámites'}</h1>

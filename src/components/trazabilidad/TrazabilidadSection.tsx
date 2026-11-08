@@ -211,7 +211,7 @@ export function TrazabilidadSection() {
       ? { to: '/tramites', label: 'Volver a Mis proyectos' }
       : { to: '/trazabilidad', label: hasModule(currentUser, 'workspace-tutor') || hasModule(currentUser, 'workspace-coordination') ? 'Volver a Seguimiento de proyectos' : 'Volver al listado de trazabilidad' }
 
-  return <div className="max-w-6xl space-y-5 animate-fadeIn">
+  return <div className="w-full min-w-0 space-y-5 animate-fadeIn">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <Link to={backTo.to} className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary)] hover:underline"><ArrowLeft size={14} aria-hidden="true" />{backTo.label}</Link>
