@@ -179,7 +179,9 @@ export function useAuth() {
     setMicrosoftError(null)
     try {
       await msalInstance.loginRedirect({ ...loginRequest, state: safeReturnPath(returnTo) ?? undefined })
-    } catch {
+    } catch (err) {
+      // El detalle (p. ej. un error de configuración de MSAL) queda en la consola para poder diagnosticarlo.
+      console.error('No se pudo abrir el inicio de sesión de Microsoft', err)
       setMicrosoftError('No se pudo abrir el inicio de sesión de Microsoft.')
     }
   }, [])
