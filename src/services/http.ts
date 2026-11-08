@@ -2,6 +2,9 @@
 // por dominio, igual que app/domains/ en el backend) necesita importar
 // para hablar con la API. Nada de lógica de negocio vive acá.
 import { useAppStore } from '@/stores/app.store'
+import { IDLE_EXPIRED_DETAIL } from '@/config/sessionPolicy'
+import { markIdleLogout } from './sessionFlash'
+import { idleTimeoutMinutes } from './idleClock'
 
 // In development, use Vite's same-origin /api proxy to avoid browser CORS
 // restrictions. Deployments can provide VITE_API_URL pointing to the API base.
@@ -57,7 +60,11 @@ let refreshing: Promise<string | null> | null = null
 function renewAccessToken(): Promise<string | null> {
   refreshing ??= send('/auth/refresh', { method: 'POST' })
     .then(async (res) => {
-      if (!res.ok) return null
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { detail?: unknown } | null
+        if (body?.detail === IDLE_EXPIRED_DETAIL) markIdleLogout(idleTimeoutMinutes())
+        return null
+      }
       const body = (await res.json()) as { access_token?: string }
       return body.access_token ?? null
     })

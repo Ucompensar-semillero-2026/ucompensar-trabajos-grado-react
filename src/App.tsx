@@ -3,6 +3,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useAuth } from '@/hooks/useAuth'
+import { useIdleLogout } from '@/hooks/useIdleLogout'
+import { IdleWarningDialog } from '@/components/auth/IdleWarningDialog'
 import { useSessionExitPolicy } from '@/hooks/useSessionExitPolicy'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
@@ -47,7 +49,7 @@ import { MyDatesPage } from '@/components/seguimiento/misfechas/MyDatesPage'
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
   const { theme } = useThemeStore()
-  const { logout, leavePortal, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
+  const { logout, idleLogout, leavePortal, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
   const homePath = currentUser ? homePathFor(currentUser.modules) : '/login'
   const location = useLocation()
 
@@ -64,6 +66,9 @@ export default function App() {
   // Política de sesión: cierra la sesión al salir del portal hacia una página pública (ver useSessionExitPolicy).
   useSessionExitPolicy(leavePortal, isRestoringSession)
 
+  // Cierre por inactividad: solo con sesión abierta (ver useIdleLogout).
+  const { secondsLeft: idleSecondsLeft, stayConnected } = useIdleLogout(isAuthenticated && !isRestoringSession, idleLogout)
+
   // Mientras se intenta restaurar la sesión (ver useAuth), no renderizar
   // las rutas todavía: si no, alguien con una cookie de refresh válida
   // vería un parpadeo a /login antes de que la restauración termine y lo
@@ -78,6 +83,7 @@ export default function App() {
 
   return (
     <AuthFlowContext.Provider value={{ loginWithMicrosoft, endSession, loginError: microsoftError }}>
+      <IdleWarningDialog secondsLeft={idleSecondsLeft} onStay={stayConnected} onLogout={logout} />
       <Routes>
         {/* Public institutional prototype */}
         <Route path="/" element={<InstitutionalHome />} />

@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import type { PublicFlash } from '@/services/sessionFlash'
 
 /** Motivo del cierre de sesión. Solo `manual` muestra un mensaje de «sesión cerrada». */
-export type SessionEndReason = 'manual' | 'postulation_success' | 'proposal_success' | 'leave_authenticated_area'
+export type SessionEndReason = 'manual' | 'postulation_success' | 'proposal_success' | 'leave_authenticated_area' | 'idle'
 
 export interface EndSessionOptions {
   reason?: SessionEndReason
