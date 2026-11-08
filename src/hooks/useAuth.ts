@@ -36,6 +36,10 @@ export function toStoreUser(me: MeOut) {
     email: me.email,
     roles: [...me.roles],
     modules: knownModules(me.modules),
+    privacy:
+      me.privacy_policy_version && me.privacy_policy_url
+        ? { accepted: me.privacy_accepted === true, version: me.privacy_policy_version, url: me.privacy_policy_url }
+        : undefined,
   }
 }
 

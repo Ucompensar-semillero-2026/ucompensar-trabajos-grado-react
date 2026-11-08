@@ -53,4 +53,12 @@ export const authApi = {
   // Avisa al servidor que la persona está usando la plataforma (ver services/activity.ts). Va con la cookie de
   // sesión, sin access token: 401 si la sesión ya se cerró.
   activity: () => request<void>('/auth/activity', { method: 'POST' }),
+
+  // Ley 1581: guarda la autorización de tratamiento de datos (el servidor registra fecha, versión, IP y navegador).
+  acceptPrivacy: (accessToken: string, policyVersion: string) =>
+    request<void>('/auth/privacy-consent', {
+      method: 'POST',
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ policy_version: policyVersion }),
+    }),
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Clock3 } from 'lucide-react'
 import { LoginPanel } from './LoginPanel'
 import { clearIdleLogout, peekIdleLogout } from '@/services/sessionFlash'
+import { DEFAULT_PRIVACY_POLICY_URL, PRIVACY_RESPONSIBLE } from '@/config/privacy'
 import { SSOForm } from './SSOForm'
 import { Logo } from '@/components/ui/Logo'
 
@@ -59,6 +60,15 @@ export function LoginScreen({ onMicrosoftLogin, microsoftError }: LoginScreenPro
           <div className="animate-in [&_p]:text-[12px] [&_button]:text-[14px]">
             <SSOForm onMicrosoftLogin={onMicrosoftLogin} error={microsoftError} />
           </div>
+
+          {/* Aviso de privacidad (Ley 1581): la aceptación se pide y se guarda al ingresar (PrivacyConsentDialog). */}
+          <p className="mt-6 text-center text-[11.5px] leading-relaxed text-[var(--color-text-dim)]">
+            Al ingresar, la {PRIVACY_RESPONSIBLE.name} tratará tus datos personales para gestionar tu trabajo de grado, según su{' '}
+            <a href={DEFAULT_PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0876B9] underline-offset-2 hover:underline">
+              política de tratamiento de datos
+            </a>
+            .
+          </p>
         </div>
 
         <p className="absolute bottom-6 px-6 text-[11px] text-[var(--color-text-dim)] text-center opacity-70">

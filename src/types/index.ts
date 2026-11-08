@@ -44,6 +44,8 @@ export interface User {
   roles: string[]
   // Módulos de GET /auth/me: lo único que decide menú y rutas (ver config/access.ts).
   modules: ModuleKey[]
+  // Autorización de tratamiento de datos (Ley 1581), de GET /auth/me. Sin este dato no se pide nada.
+  privacy?: { accepted: boolean; version: string; url: string }
 }
 
 // ─── Tramite ──────────────────────────────────────────────────
