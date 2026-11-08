@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { ArrowLeft, CheckCircle2, Cloud, CloudOff, FileText, Inbox, Loader2, X, XCircle } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAppStore } from '@/stores/app.store'
-import { filePaths } from '@/services/files.service'
+import { downloadFile, filePaths } from '@/services/files.service'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
-import { resolveFileUrl } from '@/services/http'
-import { workPlanApi, type DeliverableOut, type StageOut } from '@/services/workplan.service'
+import { ApiError } from '@/services/http'
+import type { DeliverableOut, StageOut } from '@/services/workplan.service'
 import type { ExtensionOut } from '@/services/monitoring.service'
 import { formatMoment } from '@/components/seguimiento/monitoringUi.utils'
 import { DeliverableStatusBadge } from '../workPlanUi'
@@ -58,17 +58,11 @@ export function TaskSubmissionModal({ processId, deliverable: d, stage, dependen
   const downloadTemplate = async () => {
     if (!accessToken) return
     try {
-      // Enlace firmado fresco (el de la lista pudo caducar).
-      const plan = await workPlanApi.get(accessToken, processId)
-      const url = plan.stages.flatMap((s) => s.deliverables).find((x) => x.public_id === d.public_id)?.template_download_url
-      if (!url) throw new Error()
-      const link = document.createElement('a')
-      link.href = resolveFileUrl(url)
-      link.target = '_blank'
-      link.rel = 'noopener noreferrer'
-      link.click()
-    } catch {
-      ws.setNotice({ kind: 'error', text: 'No se pudo descargar la plantilla.' })
+      // Con la sesión, por la misma regla de permisos que el visor (sin enlaces firmados que caduquen).
+      await downloadFile(accessToken, { path: filePaths.template(processId, d.public_id), fileName: d.template_file_name ?? `Plantilla - ${d.title}` })
+    } catch (err) {
+      // La causa real del servidor, p. ej. que el archivo ya no está guardado.
+      ws.setNotice({ kind: 'error', text: err instanceof ApiError ? err.message : 'No se pudo descargar la plantilla.' })
     }
   }
 

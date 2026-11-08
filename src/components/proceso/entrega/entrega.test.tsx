@@ -205,6 +205,20 @@ describe('visor en «Mis tareas»', () => {
     expect(screen.getByRole('button', { name: /Descargar plantilla/ })).toBeInTheDocument()
   })
 
+  it('si la plantilla no se puede descargar, dice la causa real del servidor', async () => {
+    const user = userEvent.setup()
+    vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace())
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: false, status: 410, headers: new Headers(), json: async () => ({ detail: 'El archivo ya no está guardado en la plataforma.' }),
+    } as Response)
+    renderModal(deliverable({ template_file_name: 'Ficha anteproyecto.docx', template_download_url: 'https://files.example/t.docx?sig=1' }))
+
+    await user.click(await screen.findByRole('button', { name: /Descargar plantilla/ }))
+    expect(await screen.findByText('El archivo ya no está guardado en la plataforma.')).toBeInTheDocument()
+    expect(String(fetch.mock.calls[0][0])).toMatch(/\/processes\/p1\/work-plan\/deliverables\/d1\/template\/file$/)
+    fetch.mockRestore()
+  })
+
   it('la versión entregada también se ve desde su tarjeta', async () => {
     const user = userEvent.setup()
     vi.mocked(workPlanApi.draftWorkspace).mockResolvedValue(workspace({ submissions: [submission()] }))

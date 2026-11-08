@@ -67,8 +67,13 @@ export function CalificacionesSection() {
 
     try {
       setFinalGrade(await gradingApi.getFinalGrade(accessToken, id))
-    } catch {
-      setFinalGrade(null) // aun no tiene calificacion final registrada
+    } catch (err) {
+      setFinalGrade(null)
+      // 404 = todavía no tiene calificación final (normal). Cualquier otro error se muestra: antes un fallo del
+      // servidor se confundía con «sin nota final».
+      if (!(err instanceof ApiError && err.status === 404)) {
+        setActionError(err instanceof ApiError ? err.message : 'No se pudo consultar la calificación final')
+      }
     }
   }
 
@@ -119,7 +124,7 @@ export function CalificacionesSection() {
   if (error) return <p className="text-[12.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>
 
   return (
-    <div className="animate-in flex flex-col gap-4 max-w-[900px]">
+    <div className="animate-in flex w-full min-w-0 flex-col gap-4">
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <GraduationCap size={16} className="text-[var(--color-primary)]" />
