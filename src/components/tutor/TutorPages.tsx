@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
-import { AlertCircle, BarChart3, CalendarClock, ClipboardList, FileCheck2, Gauge, GraduationCap, Hourglass, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { AlertCircle, BarChart3, CalendarClock, ClipboardList, FileCheck2, Gauge, GraduationCap, Hourglass, Search, Users } from 'lucide-react'
 import { Badge, Card, EmptyState, MetricCard } from '@/components/ui'
 import { formatRelativeDate } from '@/utils/format'
 import { ChartCard, ChartEmpty, HBarList } from '@/components/dashboard/charts'
@@ -8,6 +9,7 @@ import type { DeliverableStatus } from '@/services/workplan.service'
 import type { TutorOverviewOut } from '@/services/tutor.service'
 import { LoadError, PlanStatusBadge, ProgressBar, ProjectsTable } from './tutorUi'
 import { projectTitle, useTutorOverview } from './tutorUi.utils'
+import { SubmissionReviewModal } from './SubmissionReview'
 
 function Loading() {
   return <p className="px-2 py-8 text-[13px] text-[var(--color-text-muted)]">Cargando tus proyectos…</p>
@@ -38,7 +40,8 @@ function useGate() {
 }
 
 export function TutorPanel() {
-  const { data, gate } = useGate()
+  const { data, gate, reload } = useGate()
+  const [reviewing, setReviewing] = useState<{ processId: string; submissionId: string } | null>(null)
   if (gate || !data) return <>{gate}</>
   const { stats } = data
   const sub = (text: string) => <span>{text}</span>
@@ -101,9 +104,9 @@ export function TutorPanel() {
             <ul className="divide-y divide-[var(--color-border)]">
               {data.pending_reviews.slice(0, 5).map((r) => (
                 <li key={r.submission_public_id} className="py-2.5">
-                  <Link to={`/tutor/proyectos/${r.process_public_id}?tab=documentos`} className="text-[14px] font-semibold text-[#0876B9] hover:underline">
+                  <button type="button" onClick={() => setReviewing({ processId: r.process_public_id, submissionId: r.submission_public_id })} className="text-left text-[14px] font-semibold text-[#0876B9] hover:underline">
                     {r.deliverable_title} · v{r.version}
-                  </Link>
+                  </button>
                   <p className="text-[12px] text-[var(--color-text-muted)]">{r.student.full_name} · {formatRelativeDate(r.submitted_at)}</p>
                 </li>
               ))}
@@ -128,6 +131,7 @@ export function TutorPanel() {
           )}
         </Card>
       </div>
+      {reviewing && <SubmissionReviewModal processId={reviewing.processId} submissionId={reviewing.submissionId} onClose={() => setReviewing(null)} onChanged={reload} />}
     </div>
   )
 }
@@ -173,34 +177,81 @@ export function TutorPlansPage() {
   )
 }
 
+const plain = (t: string): string => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+/** Bandeja de entregas recibidas: cada fila lleva a la REVISIÓN de esa entrega (archivo, versiones y decisión), no al proyecto. */
 export function TutorReviewsPage() {
-  const { data, gate } = useGate()
+  const { data, gate, reload } = useGate()
+  const [params, setParams] = useSearchParams()
+  const [reviewing, setReviewing] = useState<{ processId: string; submissionId: string } | null>(null)
+  const query = params.get('q') ?? ''
   if (gate || !data) return <>{gate}</>
+
+  const rows = data.pending_reviews.filter((r) => {
+    if (!query.trim()) return true
+    const haystack = plain([r.deliverable_title, r.project_title ?? '', r.process_code, r.stage_name ?? '', r.student.full_name, r.submitted_by?.full_name ?? '', ...(r.team_students ?? []).map((p) => p.full_name)].join(' '))
+    return haystack.includes(plain(query.trim()))
+  })
+
   return (
     <Card>
       {data.pending_reviews.length === 0 ? (
         <EmptyState icon={FileCheck2} title="No hay entregas por revisar" description="Cuando un estudiante suba un documento, aparecerá aquí para que lo apruebes o pidas correcciones." />
       ) : (
-        <ul className="divide-y divide-[var(--color-border)]">
-          {data.pending_reviews.map((r) => (
-            <li key={r.submission_public_id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-[var(--color-text)]">{r.deliverable_title} <span className="font-normal text-[var(--color-text-muted)]">· versión {r.version}</span></p>
-                <p className="text-[12px] text-[var(--color-text-muted)]">
-                  {r.student.full_name} · {projectTitle({ title: r.project_title, process_code: r.process_code })} · entregado {formatRelativeDate(r.submitted_at)}
-                  {r.due_date ? ` · fecha límite ${formatCalendarDate(r.due_date)}` : ''}
-                </p>
-              </div>
-              <Link
-                to={`/tutor/proyectos/${r.process_public_id}?tab=documentos`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#FF6500] px-3.5 py-2 text-[12px] font-bold text-white hover:bg-[#E05A00]"
-              >
-                <Hourglass size={14} aria-hidden /> Revisar
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-[18px] font-bold text-[var(--color-text)]"><FileCheck2 size={18} aria-hidden /> Entregas recibidas ({data.pending_reviews.length})</h2>
+            <label className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 focus-within:border-[#0876B9]">
+              <Search size={14} aria-hidden className="text-[var(--color-text-muted)]" />
+              <span className="sr-only">Buscar entrega</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {}, { replace: true })}
+                placeholder="Buscar por entregable, proyecto o estudiante…"
+                className="w-64 max-w-full border-none bg-transparent text-[13px] text-[var(--color-text)] outline-none"
+              />
+            </label>
+          </div>
+          {rows.length === 0 ? (
+            <p role="status" className="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">Ninguna entrega coincide con la búsqueda.</p>
+          ) : (
+            <ul aria-label="Entregas por revisar" className="divide-y divide-[var(--color-border)]">
+              {rows.map((r) => {
+                const people = (r.team_students ?? []).map((p) => p.full_name)
+                const author = r.submitted_by?.full_name ?? r.student.full_name
+                return (
+                  <li key={r.submission_public_id} className="grid gap-3 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                    <div className="min-w-0">
+                      <p className="break-words text-[14px] font-semibold text-[var(--color-text)]">{r.deliverable_title} <span className="font-normal text-[var(--color-text-muted)]">· versión {r.version}</span></p>
+                      <p className="break-words text-[12.5px] text-[var(--color-text-muted)]">
+                        {projectTitle({ title: r.project_title, process_code: r.process_code })}{r.stage_name ? ` · Etapa: ${r.stage_name}` : ''}
+                      </p>
+                      <p className="break-words text-[12.5px] text-[var(--color-text-muted)]">
+                        Entregó: <strong className="text-[var(--color-text)]">{author}</strong>{people.length > 1 ? ` · Integrantes: ${people.join(', ')}` : ''}
+                      </p>
+                      <p className="text-[12.5px] text-[var(--color-text-muted)]">
+                        Enviado {formatRelativeDate(r.submitted_at)}{r.due_date ? ` · fecha límite ${formatCalendarDate(r.due_date)}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="orange">En revisión</Badge>
+                      <button
+                        type="button"
+                        onClick={() => setReviewing({ processId: r.process_public_id, submissionId: r.submission_public_id })}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#FF6500] px-3.5 py-2 text-[12px] font-bold text-white transition hover:bg-[#E05A00]"
+                      >
+                        <Hourglass size={14} aria-hidden /> Revisar entrega
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
+      {reviewing && <SubmissionReviewModal processId={reviewing.processId} submissionId={reviewing.submissionId} onClose={() => setReviewing(null)} onChanged={reload} />}
     </Card>
   )
 }

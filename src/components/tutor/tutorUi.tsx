@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Eye } from 'lucide-react'
+import { Eye, type LucideIcon } from 'lucide-react'
 import { Badge, Button } from '@/components/ui'
 import { type PlanStatus, type TutorProjectOut } from '@/services/tutor.service'
 import { formatCalendarDate } from '@/components/proceso/workPlanUi.utils'
-import { PLAN_STATUS_META, projectTitle } from './tutorUi.utils'
+import { cn } from '@/utils/cn'
+import { PLAN_STATUS_META, TONES, projectTitle, type SummaryTone } from './tutorUi.utils'
 
 export function PlanStatusBadge({ status }: { status: PlanStatus }) {
   const { label, variant } = PLAN_STATUS_META[status]
@@ -154,7 +155,7 @@ export function ProjectsTable({ projects, limit }: { projects: TutorProjectOut[]
                     <Link
                       to={`/tutor/proyectos/${p.process_public_id}`}
                       aria-label={`Ver proyecto de ${p.student.full_name}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-bold text-[#0876B9] hover:bg-[var(--color-info-soft,rgba(8,118,185,0.1))]"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-[12px] font-bold text-white transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-[0_4px_12px_var(--color-primary-soft)] active:scale-[0.97] active:shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]"
                     >
                       <Eye size={14} aria-hidden /> Ver proyecto
                     </Link>
@@ -169,5 +170,14 @@ export function ProjectsTable({ projects, limit }: { projects: TutorProjectOut[]
         <p className="mt-3 text-[12px] text-[var(--color-text-muted)]">Mostrando {rows.length} de {filtered.length} proyectos.</p>
       )}
     </div>
+  )
+}
+
+export function Pill({ tone, children, icon: Icon }: { tone: SummaryTone; children: ReactNode; icon?: LucideIcon }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold', TONES[tone].pill)}>
+      {Icon && <Icon size={13} aria-hidden="true" />}
+      {children}
+    </span>
   )
 }

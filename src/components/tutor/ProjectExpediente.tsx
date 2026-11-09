@@ -1,42 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, FileUp, GitBranch } from 'lucide-react'
-import { Badge, Button, Card } from '@/components/ui'
+import { ArrowLeft, CalendarDays, GitBranch, GraduationCap, Layers, User } from 'lucide-react'
+import { Card } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
-import { filePaths } from '@/services/files.service'
-import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
 import { processesApi, type ProcessHistoryOut, type ProcessOut, type TeamMemberOut } from '@/services/processes.service'
-import { workPlanApi, type DeliverableOut, type PlanEventOut, type SubmissionOut, type WorkPlanOut } from '@/services/workplan.service'
+import { workPlanApi, type PlanEventOut, type WorkPlanOut } from '@/services/workplan.service'
 import { formatRelativeDate } from '@/utils/format'
-import { DeliverableStatusBadge } from '@/components/proceso/workPlanUi'
-import { formatCalendarDate } from '@/components/proceso/workPlanUi.utils'
-import { LoadError, ProgressBar } from './tutorUi'
-import { PlanEditor } from './PlanEditor'
+import { LoadError, Pill } from './tutorUi'
+import { CARD, EVENT_LABELS, stateTone } from './tutorUi.utils'
+import { ProjectSummary } from './ProjectSummary'
+import { PlanWorkspace } from './PlanWorkspace'
+import { ScheduleBoard } from './ScheduleBoard'
+import { EvaluationPanel } from './evaluacion/EvaluationPanel'
 
 const TABS = [
   ['resumen', 'Resumen'],
-  ['plan', 'Plan de trabajo'],
-  ['documentos', 'Entregables'],
+  ['plan', 'Plan de trabajo y entregables'],
   ['cronograma', 'Cronograma'],
+  ['evaluacion', 'Evaluación'],
   ['historial', 'Historial de actividad'],
 ] as const
 type TabId = (typeof TABS)[number][0]
-
-const EVENT_LABELS: Record<string, string> = {
-  plan_creado: 'Plan creado',
-  fechas_del_plan: 'Fechas del plan modificadas',
-  plan_publicado: 'Plan publicado',
-  etapa_creada: 'Etapa creada',
-  etapa_editada: 'Etapa editada',
-  entregable_creado: 'Entregable creado',
-  entregable_editado: 'Entregable editado',
-  plantilla_subida: 'Plantilla subida',
-  entrega_recibida: 'Entrega recibida',
-  entrega_revisada: 'Entrega revisada',
-}
-
-const DECISION_LABEL = { aprobado: 'Aprobado', requiere_correcciones: 'Requiere correcciones' } as const
 
 interface ExpedienteData {
   process: ProcessOut
@@ -85,250 +70,50 @@ function useExpediente(processId: string | undefined) {
   return { data, status, error, reload: load, setPlan: (plan: WorkPlanOut) => setData((d) => (d ? { ...d, plan } : d)) }
 }
 
-// ── Revisión de un entregable ─────────────────────────────────────────────────
+// ── Pestañas ──────────────────────────────────────────────────────────────────
 
-function DeliverableReviewCard({ deliverable: d, processId, stageName, canManage, onChanged }: { deliverable: DeliverableOut; processId: string; stageName: string; canManage: boolean; onChanged: () => Promise<void> }) {
-  const accessToken = useAppStore((s) => s.accessToken)
-  const templateInput = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [comment, setComment] = useState('')
-  const [asking, setAsking] = useState(false)
-  const [history, setHistory] = useState<SubmissionOut[] | null>(null)
-  const [showHistory, setShowHistory] = useState(false)
-  const current = d.current_submission
-  const awaitingReview = current?.status === 'en_revision'
-
-  const guard = async (action: (token: string) => Promise<unknown>) => {
-    if (!accessToken || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      await action(accessToken)
-      setHistory(null)
-      await onChanged()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudo completar la acción')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const decide = (decision: 'aprobado' | 'requiere_correcciones') =>
-    guard(async (t) => {
-      await workPlanApi.review(t, processId, (current as SubmissionOut).public_id, decision, comment)
-      setComment('')
-      setAsking(false)
-    })
-
-  const toggleHistory = async () => {
-    const next = !showHistory
-    setShowHistory(next)
-    if (next && history === null && accessToken) setHistory(await workPlanApi.listSubmissions(accessToken, processId, d.public_id).catch(() => []))
-  }
-
+/** Barra del proyecto: nombre, estudiantes, modalidad, tutor, periodo y estado reales (se ve en todas las pestañas). */
+function ProjectBar({ process, team }: { process: ProcessOut; team: TeamMemberOut[] }) {
+  // Estudiantes = integrantes activos con el mismo rol de proceso que el titular del trámite (sin comparar nombres de rol).
+  const ownerRole = team.find((m) => m.user.public_id === process.student.public_id)?.process_role
+  const students = ownerRole ? team.filter((m) => m.active && m.process_role === ownerRole).map((m) => m.user.full_name) : []
+  const names = students.length ? students : [process.student.full_name]
+  const tutors = team.filter((m) => m.process_role === 'tutor' && m.active)
+  const label = 'text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]'
   return (
-    <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h5 className="font-display text-[18px] font-bold text-[var(--color-secondary)]">{d.title}</h5>
-          <p className="text-[12px] text-[var(--color-text-muted)]">{stageName} · {d.mandatory ? 'Obligatorio' : 'Opcional'} · Fecha límite: {formatCalendarDate(d.due_date)}</p>
-        </div>
-        <div className="flex gap-1.5">
-          <DeliverableStatusBadge status={d.status} />
-          {d.is_overdue && <Badge variant="red">Vencido</Badge>}
-        </div>
-      </header>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-[13px]">
-        {d.template_download_url ? (
-          <span className="inline-flex flex-wrap items-center gap-3">
-            <span className="text-[var(--color-text)]">Plantilla: {d.template_file_name}</span>
-            <ArchivoAcciones
-              file={{ path: filePaths.template(processId, d.public_id), fileName: d.template_file_name ?? 'plantilla' }}
-              title={`Plantilla · ${d.title}`}
-              downloadLabel="Descargar plantilla"
-              missing={d.template_missing}
-            />
-          </span>
-        ) : (
-          <span className="text-[var(--color-text-muted)]">Sin plantilla</span>
-        )}
-        {canManage && (
-          <>
-            <input
-              ref={templateInput}
-              type="file"
-              className="sr-only"
-              tabIndex={-1}
-              aria-label={`Subir plantilla para ${d.title}`}
-              accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) void guard((t) => workPlanApi.uploadTemplate(t, processId, d.public_id, file))
-                e.target.value = ''
-              }}
-            />
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => templateInput.current?.click()}>
-              <FileUp size={14} aria-hidden /> {d.template_download_url ? 'Reemplazar plantilla' : 'Subir plantilla'}
-            </Button>
-          </>
-        )}
+    <section aria-label="Información del proyecto" className={`${CARD} grid gap-4 p-4 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_auto] xl:items-center`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#FF6500] dark:bg-orange-500/15"><Layers size={26} aria-hidden="true" /></span>
+        <h2 className="min-w-0 break-words border-l-4 border-[#FF6500] pl-3 font-display text-[18px] font-extrabold leading-snug text-[var(--color-secondary)]">
+          {process.title?.trim() || `Sin título registrado · ${process.process_code}`}
+        </h2>
       </div>
-
-      {current ? (
-        <div className="mt-3 rounded-xl bg-[var(--color-bg)] px-4 py-3 text-[13px]">
-          <p className="font-semibold text-[var(--color-text)]">{current.file_name} <span className="font-normal text-[var(--color-text-muted)]">· versión {current.version} · {formatRelativeDate(current.submitted_at)}</span></p>
-          {current.student_comment && <p className="mt-0.5 text-[var(--color-text-muted)]">Comentario del estudiante: {current.student_comment}</p>}
-          <span className="mt-1 inline-flex">
-            <ArchivoAcciones
-              file={{ path: filePaths.submission(processId, current.public_id), fileName: current.file_name }}
-              title={d.title}
-              version={current.version}
-              downloadLabel="Descargar entrega"
-              missing={current.file_missing}
-            />
-          </span>
-        </div>
-      ) : (
-        <p className="mt-3 text-[13px] text-[var(--color-text-muted)]">El estudiante aún no ha entregado este documento.</p>
-      )}
-
-      {canManage && awaitingReview && (
-        <div className="mt-3 flex flex-col gap-3">
-          {asking && (
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-              placeholder="Escribe las observaciones para el estudiante…"
-              aria-label="Observaciones para solicitar correcciones"
-              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]"
-            />
-          )}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" size="sm" disabled={busy} onClick={() => void decide('aprobado')}>Aprobar entrega</Button>
-            {asking ? (
-              <Button type="button" variant="outline" size="sm" disabled={busy || !comment.trim()} onClick={() => void decide('requiere_correcciones')}>
-                Enviar solicitud de correcciones
-              </Button>
-            ) : (
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAsking(true)}>Solicitar correcciones</Button>
-            )}
-          </div>
-        </div>
-      )}
-      {error && <p role="alert" className="mt-2 text-[13px] font-medium text-red-700">{error}</p>}
-
-      {d.submissions_count > 0 && (
-        <button type="button" onClick={() => void toggleHistory()} aria-expanded={showHistory} className="mt-3 text-[13px] font-semibold text-[#0876B9] underline underline-offset-4">
-          Versiones y decisiones ({d.submissions_count})
-        </button>
-      )}
-      {showHistory && (
-        <ul className="mt-2 flex flex-col gap-2 border-t border-[var(--color-border)] pt-3">
-          {history === null ? <li className="text-[12px] text-[var(--color-text-muted)]">Cargando…</li> : history.map((s) => (
-            <li key={s.public_id} className="text-[13px]">
-              <p><strong>v{s.version}</strong> · {s.file_name} · {formatRelativeDate(s.submitted_at)} · <DeliverableStatusBadge status={s.status} />{' '}
-                <ArchivoAcciones
-                  file={{ path: filePaths.submission(processId, s.public_id), fileName: s.file_name }}
-                  title={d.title}
-                  version={s.version}
-                  missing={s.file_missing}
-                />
-              </p>
-              {s.reviews.map((r) => (
-                <p key={r.public_id} className="ml-3 text-[12px] text-[var(--color-text-muted)]">
-                  {DECISION_LABEL[r.decision]} por {r.reviewer.full_name} · {formatRelativeDate(r.created_at)}{r.comment ? `: ${r.comment}` : ''}
-                </p>
-              ))}
+      <div className="min-w-0 xl:border-l xl:border-[#DCE6F2] xl:pl-4 dark:xl:border-[var(--color-border)]">
+        <p className={label}>{names.length === 1 ? 'Estudiante' : `Estudiantes (${names.length})`}</p>
+        <ul aria-label="Estudiantes del proyecto" className="mt-1 flex flex-wrap gap-1.5">
+          {names.map((n) => (
+            <li key={n} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[13px] font-bold text-[var(--color-secondary)] dark:bg-white/10">
+              <User size={14} aria-hidden="true" className="shrink-0" /><span className="truncate">{n}</span>
             </li>
           ))}
         </ul>
-      )}
-    </article>
-  )
-}
-
-// ── Pestañas ──────────────────────────────────────────────────────────────────
-
-function Summary({ data }: { data: ExpedienteData }) {
-  const { process, plan, team } = data
-  const tutors = team.filter((m) => m.process_role === 'tutor')
-  const progress = plan?.status === 'publicado' && plan.progress.total_required > 0 ? plan.progress : null
-  const fact = (label: string, value: string) => (
-    <div key={label}>
-      <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">{label}</dt>
-      <dd className="mt-1 text-[14px] font-semibold text-[var(--color-text)]">{value}</dd>
-    </div>
-  )
-  return (
-    <div className="flex flex-col gap-5">
-      <Card>
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {fact('Proyecto', process.title?.trim() || `Sin título registrado · ${process.process_code}`)}
-          {fact('Estudiante', process.student.full_name)}
-          {fact('Modalidad', process.modality.name)}
-          {fact('Tutor', tutors.length ? tutors.map((t) => t.user.full_name).join(', ') : 'Sin tutor activo')}
-          {fact('Estado del proceso', process.state.name)}
-          {fact('Fecha de inicio', plan ? formatCalendarDate(plan.start_date) : 'Plan sin crear')}
-          {fact('Fecha objetivo', plan ? formatCalendarDate(plan.target_end_date) : 'Plan sin crear')}
-          {fact('Finalización oficial', plan?.official_completion || process.closed_at ? 'Proceso cerrado' : 'Proceso en curso')}
-        </dl>
-      </Card>
-      <Card>
-        <h3 className="mb-2 text-[18px] font-bold text-[var(--color-text)]">Avance de entregables aprobados</h3>
-        {progress ? (
-          <>
-            <ProgressBar percent={progress.percent} label="Avance de entregables obligatorios aprobados" />
-            <p className="mt-2 text-[13px] text-[var(--color-text-muted)]">
-              {progress.percent}% · {progress.approved} de {progress.total_required} obligatorios aprobados · {progress.pending_review} por revisar · {progress.needs_corrections} con correcciones · {progress.overdue} vencidos.
-              Un 100 % de entregables no equivale a la finalización oficial del proceso.
-            </p>
-          </>
-        ) : (
-          <p className="text-[13px] text-[var(--color-text-muted)]">
-            {plan ? 'El avance se mostrará cuando el plan esté publicado y tenga entregables obligatorios.' : 'Aún no hay un plan de trabajo: crea uno en la pestaña «Plan de trabajo».'}
-          </p>
-        )}
-        {plan && plan.stages.length > 0 && (
-          <ul className="mt-4 flex flex-col gap-2 border-t border-[var(--color-border)] pt-3">
-            {plan.stages.map((s) => {
-              const required = s.deliverables.filter((d) => d.mandatory && d.active && d.applicable)
-              const approved = required.filter((d) => d.status === 'aprobado').length
-              return (
-                <li key={s.public_id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
-                  <span className="text-[var(--color-text)]">{s.name} <span className="text-[var(--color-text-muted)]">· semestre {s.semester}</span></span>
-                  <span className="text-[var(--color-text-muted)]">{required.length ? `${approved}/${required.length} aprobados` : 'Sin obligatorios'}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Card>
-    </div>
-  )
-}
-
-function Schedule({ plan }: { plan: WorkPlanOut | null }) {
-  if (!plan) return <Card><p className="text-[13px] text-[var(--color-text-muted)]">Aún no hay un plan de trabajo.</p></Card>
-  const rows = plan.stages
-    .flatMap((s) => s.deliverables.filter((d) => d.active).map((d) => ({ d, stage: s.name })))
-    .sort((a, b) => (a.d.due_date ?? '9999').localeCompare(b.d.due_date ?? '9999'))
-  return (
-    <Card>
-      <p role="status" className="mb-4 text-[13px] text-[var(--color-text-muted)]">
-        {plan.status === 'publicado' ? 'Fechas publicadas y confirmadas para el estudiante.' : 'Borrador: estas fechas aún no están confirmadas ni visibles para el estudiante.'}
-      </p>
-      <ul className="divide-y divide-[var(--color-border)]">
-        {rows.map(({ d, stage }) => (
-          <li key={d.public_id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[13px]">
-            <span><strong className="text-[var(--color-text)]">{formatCalendarDate(d.due_date)}</strong> · {d.title} <span className="text-[var(--color-text-muted)]">({stage})</span></span>
-            <span className="flex items-center gap-2">{d.is_overdue && <Badge variant="red">Vencido</Badge>}<DeliverableStatusBadge status={d.status} /></span>
-          </li>
-        ))}
-      </ul>
-    </Card>
+      </div>
+      <div className="flex min-w-0 items-center gap-2.5 xl:border-l xl:border-[#DCE6F2] xl:pl-4 dark:xl:border-[var(--color-border)]">
+        <Layers size={20} aria-hidden="true" className="shrink-0 text-slate-500" />
+        <div className="min-w-0"><p className={label}>Modalidad</p><p className="break-words text-[13.5px] font-bold text-[var(--color-secondary)]">{process.modality.name}</p></div>
+      </div>
+      <div className="flex min-w-0 items-center gap-2.5 xl:border-l xl:border-[#DCE6F2] xl:pl-4 dark:xl:border-[var(--color-border)]">
+        <GraduationCap size={20} aria-hidden="true" className="shrink-0 text-slate-500" />
+        <div className="min-w-0"><p className={label}>Tutor</p><p className="break-words text-[13.5px] font-bold text-[var(--color-secondary)]">{tutors.length ? tutors.map((t) => t.user.full_name).join(', ') : 'Sin tutor activo'}</p></div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 xl:border-l xl:border-[#DCE6F2] xl:pl-4 dark:xl:border-[var(--color-border)]">
+        <div className="flex items-center gap-2.5">
+          <CalendarDays size={20} aria-hidden="true" className="shrink-0 text-slate-500" />
+          <div><p className={label}>Periodo</p><p className="text-[13.5px] font-bold text-[var(--color-secondary)]">{process.academic_semester}</p></div>
+        </div>
+        <div><p className={label}>Estado</p><div className="mt-0.5"><Pill tone={stateTone(process.state.name)}>{process.state.name}</Pill></div></div>
+      </div>
+    </section>
   )
 }
 
@@ -371,10 +156,25 @@ export function ProjectExpediente({ backTo = { to: '/tutor/proyectos', label: 'V
   const [params, setParams] = useSearchParams()
   const currentUser = useAppStore((s) => s.currentUser)
   const { data, status, error, reload, setPlan } = useExpediente(processId)
-  const tab = (TABS.find(([id]) => id === params.get('tab'))?.[0] ?? 'resumen') as TabId
+  // `?tab=documentos` era la pestaña «Entregables» (hoy unificada con el plan): los enlaces antiguos siguen funcionando.
+  const requestedTab = params.get('tab') === 'documentos' ? 'plan' : params.get('tab')
+  const tab = (TABS.find(([id]) => id === requestedTab)?.[0] ?? 'resumen') as TabId
+
+  const focusId = params.get('entregable')
+  const clearFocus = useCallback(() => setParams((prev) => { const n = new URLSearchParams(prev); n.delete('entregable'); return n }, { replace: true }), [setParams])
+  const openDeliverable = (id: string) => setParams({ tab: 'plan', entregable: id })
 
   if (!processId) return null
-  if (status === 'loading' && !data) return <p className="px-2 py-8 text-[13px] text-[var(--color-text-muted)]">Cargando proyecto…</p>
+  if (status === 'loading' && !data) {
+    return (
+      <div role="status" aria-label="Cargando proyecto" className="flex flex-col gap-4" aria-busy="true">
+        <span className="sr-only">Cargando proyecto…</span>
+        <div className="h-20 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-white/10" />
+        <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-white/10" />
+        <div className="grid gap-4 lg:grid-cols-3"><div className="h-64 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-white/10" /><div className="h-64 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-white/10 lg:col-span-2" /></div>
+      </div>
+    )
+  }
   if (status === 'error' || !data) return <LoadError message={error} onRetry={() => void reload()} />
 
   const isTutor = data.team.some((m) => m.process_role === 'tutor' && m.active && m.user.public_id === currentUser?.id)
@@ -384,30 +184,32 @@ export function ProjectExpediente({ backTo = { to: '/tutor/proyectos', label: 'V
 
   return (
     <div className="flex flex-col gap-5">
+      <Link to={backTo.to} className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[#0876B9] underline underline-offset-4">
+        <ArrowLeft size={14} aria-hidden /> {backTo.label}
+      </Link>
+
+      <ProjectBar process={data.process} team={data.team} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to={backTo.to} className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0876B9] underline underline-offset-4">
-          <ArrowLeft size={14} aria-hidden /> {backTo.label}
-        </Link>
+        <div role="tablist" aria-label="Secciones del proyecto" className="flex flex-wrap gap-2">
+          {TABS.map(([id, label]) => (
+            <button
+              key={id}
+              role="tab"
+              type="button"
+              aria-selected={tab === id}
+              onClick={() => setParams(id === 'resumen' ? {} : { tab: id })}
+              className={`rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${tab === id ? 'bg-[#FF6500] text-white shadow-sm' : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {isTutor && <Link
           to={`/trazabilidad/${processId}`}
           state={{ fromTutorExpediente: true }}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#FF6500] px-4 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-[#e65c00] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6500]"
         ><GitBranch size={16} aria-hidden="true" />Abrir seguimiento del proyecto</Link>}
-      </div>
-
-      <div role="tablist" aria-label="Secciones del proyecto" className="flex flex-wrap gap-2">
-        {TABS.map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            type="button"
-            aria-selected={tab === id}
-            onClick={() => setParams(id === 'resumen' ? {} : { tab: id })}
-            className={`rounded-xl px-4 py-2 text-[13px] font-semibold transition-colors ${tab === id ? 'bg-[#FF6500] text-white' : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-          >
-            {label}
-          </button>
-        ))}
       </div>
 
       {!canManage && (
@@ -417,27 +219,21 @@ export function ProjectExpediente({ backTo = { to: '/tutor/proyectos', label: 'V
       )}
 
       <div role="tabpanel">
-        {tab === 'resumen' && <Summary data={data} />}
-        {tab === 'plan' && (canManage ? <PlanEditor plan={data.plan} processId={processId} onPlan={setPlan} /> : <Schedule plan={data.plan} />)}
-        {tab === 'documentos' && (
-          data.plan ? (
-            <div className="flex flex-col gap-6">
-              {data.plan.stages.map((stage) => (
-                <section key={stage.public_id} aria-label={stage.name}>
-                  <h3 className="mb-3 text-[18px] font-bold text-[var(--color-secondary)]">{stage.name} <span className="text-[13px] font-normal text-[var(--color-text-muted)]">· semestre {stage.semester}</span></h3>
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    {stage.deliverables.map((d) => (
-                      <DeliverableReviewCard key={d.public_id} deliverable={d} processId={processId} stageName={stage.name} canManage={canManage} onChanged={reload} />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <Card><p className="text-[13px] text-[var(--color-text-muted)]">Crea el plan de trabajo para definir los entregables.</p></Card>
-          )
+        {tab === 'resumen' && <ProjectSummary process={data.process} plan={data.plan} team={data.team} activity={data.activity} history={data.history} onOpenDeliverable={openDeliverable} />}
+        {tab === 'plan' && (
+          <PlanWorkspace
+            processId={processId}
+            process={data.process}
+            plan={data.plan}
+            canManage={canManage}
+            onPlan={setPlan}
+            reload={reload}
+            focusId={focusId}
+            onFocusHandled={clearFocus}
+          />
         )}
-        {tab === 'cronograma' && <Schedule plan={data.plan} />}
+        {tab === 'cronograma' && <ScheduleBoard processId={processId} process={data.process} plan={data.plan} canManage={canManage} onPlan={setPlan} reload={reload} />}
+        {tab === 'evaluacion' && <EvaluationPanel processId={processId} />}
         {tab === 'historial' && <Activity activity={data.activity} history={data.history} />}
       </div>
     </div>

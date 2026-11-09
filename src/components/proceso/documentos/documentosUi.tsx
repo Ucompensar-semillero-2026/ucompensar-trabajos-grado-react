@@ -16,7 +16,7 @@ const STATUS_STYLE: Record<DisplayStatus, { Icon: IconType; cls: string }> = {
   borrador: { Icon: Cloud, cls: 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300' },
   vencida: { Icon: TriangleAlert, cls: 'border-red-400 bg-red-100 text-red-900 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-200' },
   disponible: { Icon: Circle, cls: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-white/15 dark:bg-white/10 dark:text-slate-200' },
-  pendiente: { Icon: Lock, cls: 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]' },
+  pendiente: { Icon: Lock, cls: 'border-slate-300 bg-slate-50 text-slate-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-300' },
   no_aplica: { Icon: Ban, cls: 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)]' },
 }
 
@@ -26,6 +26,21 @@ export function StatusPill({ status, className }: { status: DisplayStatus; class
     <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[12px] font-bold leading-none', cls, className)}>
       <Icon size={13} aria-hidden="true" />
       {DISPLAY_STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+/**
+ * Nota oficial publicada de un entregable («4.5 / 5.0»). Sin nota publicada (pendiente, en revisión o sin dato) se muestra «—»:
+ * nunca se infiere una nota del estado ni se muestra una provisional como definitiva.
+ */
+export function GradeCell({ grade, className }: { grade: number | null | undefined; className?: string }) {
+  if (grade == null || !Number.isFinite(grade)) {
+    return <span aria-label="Sin nota publicada" className={cn('block text-center text-[18px] font-bold leading-none text-[var(--color-text-muted)]', className)}>—</span>
+  }
+  return (
+    <span className={cn('block whitespace-nowrap text-center text-[15px] font-extrabold text-[var(--color-secondary)]', className)}>
+      {grade.toFixed(1)} <span className="font-semibold text-[var(--color-text-muted)]">/ 5.0</span>
     </span>
   )
 }

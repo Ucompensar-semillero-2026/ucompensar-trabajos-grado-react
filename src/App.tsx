@@ -24,6 +24,7 @@ import { NuevoTramiteSection } from '@/components/tramites/NuevoTramiteSection'
 import { BuscarSection } from '@/components/tramites/BuscarSection'
 import { TrazabilidadSection } from '@/components/trazabilidad/TrazabilidadSection'
 import { DocumentsRoute } from '@/components/proceso/DocumentsRoute'
+import { GradeReportPage } from '@/components/proceso/documentos/GradeReportPage'
 import { MiProcesoSection } from '@/components/proceso/MiProcesoSection'
 import { TutorPanel, TutorProjectsPage, TutorPlansPage, TutorReviewsPage, TutorStatsPage } from '@/components/tutor/TutorPages'
 import { ProjectExpediente } from '@/components/tutor/ProjectExpediente'
@@ -193,6 +194,9 @@ export default function App() {
           <Route path="/trazabilidad" element={<TrazabilidadSection />} />
           <Route path="/trazabilidad/:processId" element={<TrazabilidadSection />} />
           <Route path="/documentos" element={<DocumentsRoute />} />
+          {/* Libro de calificaciones de un proyecto: una sola página para todos los roles, sin opción propia en el menú (sigue marcando «Mis tareas»).
+              El estudiante ve lo suyo y publicado; el tutor, el evaluador y Coordinación lo abren desde el proyecto (?proceso=). El backend decide qué se ve. */}
+          <Route path="/documentos/reporte-notas" element={<RequireModule><GradeReportPage /></RequireModule>} />
           <Route
             path="/comites"
             element={

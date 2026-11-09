@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, FolderOpen, LayoutGrid, List, Search } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { CalendarDays, CheckCircle2, ChevronDown, ClipboardList, FolderOpen, Layers, LayoutGrid, List, Search, type LucideIcon } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { DeliverableOut, StageOut, WorkPlanOut } from '@/services/workplan.service'
 import { allDeliverables } from '../workPlanUi.utils'
@@ -14,7 +14,7 @@ import {
   type DraftMap,
   type Filters,
 } from './documentosHelpers'
-import { DeliverableActions, EmptyNote, FileTypeIcon, StatusPill } from './documentosUi'
+import { DeliverableActions, EmptyNote, FileTypeIcon, GradeCell, StatusPill } from './documentosUi'
 
 interface Props {
   plan: WorkPlanOut
@@ -24,10 +24,42 @@ interface Props {
   defaultSemester: number | null
   onSelect: (deliverableId: string) => void
   onOpen: (deliverableId: string) => void
+  /**
+   * Nota OFICIAL publicada por entregable (public_id → nota de 0 a 5). Hoy el backend no guarda una nota por entregable (las notas
+   * son por criterio de evaluación: ver el reporte general), así que normalmente va vacío y la columna muestra «—». Es el único
+   * punto de conexión cuando esa nota exista.
+   */
+  grades?: Record<string, number>
+  /** Periodos académicos de los procesos del estudiante y el seleccionado (filtro «Periodo académico»). */
+  periods?: string[]
+  period?: string | null
+  onPeriodChange?: (period: string) => void
+  /** Línea «proyecto · modalidad · estado» bajo el título de la tabla. */
+  projectLine?: string
+  /** Procesos del estudiante: si hay más de uno aparece el filtro «Proceso» (antes era un selector del resumen del proyecto). */
+  processOptions?: Array<{ value: string; label: string }>
+  processId?: string | null
+  onProcessChange?: (processId: string) => void
 }
 
 const control =
-  'h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[#0E6B9C] focus-visible:ring-2 focus-visible:ring-[#0E6B9C]/30'
+  'h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[#0E6B9C] focus-visible:ring-2 focus-visible:ring-[#0E6B9C]/30'
+
+/** Columnas de la lista: Entregable | Estado | Nota | Fecha límite | Acciones (cabecera y filas comparten la plantilla). */
+const LIST_COLS = 'md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.5fr)_88px_minmax(0,1fr)_168px]' // clase completa: Tailwind no detecta plantillas
+
+/** Un filtro de la barra: icono, etiqueta visible y control (el nombre accesible del control lo pone cada uno). */
+function FilterField({ Icon, label, children }: { Icon: LucideIcon; label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <Icon size={20} aria-hidden="true" className="shrink-0 text-[#0E6B9C]" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span aria-hidden="true" className="text-[12.5px] font-bold text-[var(--color-secondary)]">{label}</span>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 function DueDate({ d }: { d: DeliverableOut }) {
   const late = d.is_overdue && d.status !== 'aprobado'
@@ -45,16 +77,19 @@ interface RowProps {
   hint: string | null
   drafts: DraftMap
   selected: boolean
+  /** Nota oficial publicada (null = sin nota). */
+  grade: number | null
   onSelect: (id: string) => void
   onOpen: (id: string) => void
 }
 
-function DeliverableRow({ d, stage, hint, drafts, selected, onSelect, onOpen }: RowProps) {
+function DeliverableRow({ d, stage, hint, drafts, selected, grade, onSelect, onOpen }: RowProps) {
   return (
     <li
       onClick={() => onSelect(d.public_id)}
       className={cn(
-        'grid cursor-pointer items-center gap-x-4 gap-y-2 border-t border-[var(--color-border)] px-4 py-3 transition-colors md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_168px]',
+        'grid cursor-pointer items-center gap-x-4 gap-y-2 border-t border-[var(--color-border)] px-4 py-3 transition-colors',
+        LIST_COLS,
         selected ? 'bg-[#FF641D]/10 dark:bg-[#FF641D]/10' : 'hover:bg-[var(--color-bg)]'
       )}
     >
@@ -78,6 +113,7 @@ function DeliverableRow({ d, stage, hint, drafts, selected, onSelect, onOpen }: 
         <StatusPill status={displayStatus(d, drafts)} />
         {hint && <span className="text-[11.5px] text-[var(--color-text-muted)]">{hint}</span>}
       </div>
+      <GradeCell grade={grade} />
       <DueDate d={d} />
       <DeliverableActions deliverable={d} onOpen={onOpen} />
     </li>
@@ -111,7 +147,7 @@ function DeliverableCardItem({ d, stage, hint, drafts, selected, onSelect, onOpe
   )
 }
 
-export function DeliverablesTab({ plan, drafts, selectedId, defaultSemester, onSelect, onOpen }: Props) {
+export function DeliverablesTab({ plan, drafts, selectedId, defaultSemester, onSelect, onOpen, grades, periods = [], period = null, onPeriodChange, projectLine, processOptions = [], processId = null, onProcessChange }: Props) {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [view, setView] = useState<'lista' | 'tarjetas'>('lista')
   const [toggled, setToggled] = useState<Record<number, boolean>>({})
@@ -141,8 +177,59 @@ export function DeliverablesTab({ plan, drafts, selectedId, defaultSemester, onS
 
   return (
     <div className="flex flex-col gap-4">
+      <div role="search" className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[var(--shadow-sm)]">
+        {processOptions.length > 1 && (
+          <div className="min-w-[220px] flex-[1.3]">
+            <FilterField Icon={ClipboardList} label="Proceso de grado">
+              <select aria-label="Filtrar por proceso de grado" value={processId ?? processOptions[0].value} onChange={(e) => onProcessChange?.(e.target.value)} className={control}>
+                {processOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </FilterField>
+          </div>
+        )}
+        {periods.length > 0 && (
+          <div className="min-w-[190px] flex-1">
+            <FilterField Icon={CalendarDays} label="Periodo académico">
+              <select aria-label="Filtrar por periodo académico" value={period ?? periods[0]} onChange={(e) => onPeriodChange?.(e.target.value)} className={control}>
+                {periods.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </FilterField>
+          </div>
+        )}
+        {groups.length > 1 && (
+          <div className="min-w-[190px] flex-1 border-[var(--color-border)] lg:border-l lg:pl-4">
+            <FilterField Icon={Layers} label="Semestre">
+              <select aria-label="Filtrar por semestre" value={String(filters.semester)} onChange={(e) => setFilters((f) => ({ ...f, semester: e.target.value === 'todos' ? 'todos' : Number(e.target.value) }))} className={control}>
+                <option value="todos">Todos los semestres</option>
+                {groups.map((g) => <option key={g.semester} value={g.semester}>Semestre {g.semester}</option>)}
+              </select>
+            </FilterField>
+          </div>
+        )}
+        <div className="min-w-[190px] flex-1 border-[var(--color-border)] lg:border-l lg:pl-4">
+          <FilterField Icon={CheckCircle2} label="Estado">
+            <select aria-label="Filtrar por estado" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as Filters['status'] }))} className={control}>
+              {STATUS_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </FilterField>
+        </div>
+        <label className="relative min-w-[220px] flex-[1.3] self-end">
+          <span className="sr-only">Buscar entregable</span>
+          <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)]" />
+          <input type="search" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} placeholder="Buscar entregable…" className={cn(control, 'pl-9')} />
+        </label>
+        {filtering && (
+          <button type="button" onClick={() => setFilters(NO_FILTERS)} className="h-10 cursor-pointer self-end rounded-xl px-3 text-[13px] font-bold text-[#0E6B9C] hover:bg-[#0E6B9C]/10">
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-[19px] font-extrabold text-[var(--color-secondary)]">Entregables por semestre</h2>
+        <div className="min-w-0">
+          <h2 className="font-display text-[19px] font-extrabold text-[var(--color-secondary)]">Entregables por semestre</h2>
+          {projectLine && <p className="mt-0.5 truncate text-[12.5px] text-[var(--color-text-muted)]" title={projectLine}>{projectLine}</p>}
+        </div>
         <div role="group" aria-label="Vista" className="flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-1 text-[12.5px] font-bold">
           {([['lista', 'Lista', List], ['tarjetas', 'Tarjetas', LayoutGrid]] as const).map(([value, label, Icon]) => (
             <button
@@ -157,34 +244,6 @@ export function DeliverablesTab({ plan, drafts, selectedId, defaultSemester, onS
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2" role="search">
-        <label className="relative min-w-[200px] flex-1">
-          <span className="sr-only">Buscar entregable</span>
-          <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-dim)]" />
-          <input type="search" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} placeholder="Buscar entregable…" className={cn(control, 'w-full pl-9')} />
-        </label>
-        <label>
-          <span className="sr-only">Filtrar por estado</span>
-          <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as Filters['status'] }))} className={control}>
-            {STATUS_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-        {groups.length > 1 && (
-          <label>
-            <span className="sr-only">Filtrar por semestre</span>
-            <select value={String(filters.semester)} onChange={(e) => setFilters((f) => ({ ...f, semester: e.target.value === 'todos' ? 'todos' : Number(e.target.value) }))} className={control}>
-              <option value="todos">Todos los semestres</option>
-              {groups.map((g) => <option key={g.semester} value={g.semester}>Semestre {g.semester}</option>)}
-            </select>
-          </label>
-        )}
-        {filtering && (
-          <button type="button" onClick={() => setFilters(NO_FILTERS)} className="h-10 cursor-pointer rounded-xl px-3 text-[13px] font-bold text-[#0E6B9C] hover:bg-[#0E6B9C]/10">
-            Limpiar filtros
-          </button>
-        )}
       </div>
 
       {visible.length === 0 ? (
@@ -223,16 +282,17 @@ export function DeliverablesTab({ plan, drafts, selectedId, defaultSemester, onS
               {open && (
                 <div id={panelId}>
                   {view === 'lista' && (
-                    <div aria-hidden="true" className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1.5fr)_minmax(0,1fr)_168px] gap-x-4 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-[11.5px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] md:grid">
+                    <div aria-hidden="true" className={cn('hidden gap-x-4 border-t border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-[11.5px] font-bold uppercase tracking-wide text-[var(--color-text-muted)] md:grid', LIST_COLS)}>
                       <span>Entregable</span>
                       <span>Estado</span>
+                      <span className="text-center">Nota</span>
                       <span>Fecha límite</span>
                       <span className="text-right">Acciones</span>
                     </div>
                   )}
                   <ul className={cn(view === 'tarjetas' && 'grid gap-3 border-t border-[var(--color-border)] p-4 sm:grid-cols-2 2xl:grid-cols-3')}>
                     {g.rows.map(({ deliverable, stage }) => (
-                      <Item key={deliverable.public_id} d={deliverable} stage={stage} hint={hintFor(deliverable)} drafts={drafts} selected={selectedId === deliverable.public_id} onSelect={onSelect} onOpen={onOpen} />
+                      <Item key={deliverable.public_id} d={deliverable} stage={stage} hint={hintFor(deliverable)} drafts={drafts} selected={selectedId === deliverable.public_id} grade={grades?.[deliverable.public_id] ?? null} onSelect={onSelect} onOpen={onOpen} />
                     ))}
                   </ul>
                 </div>

@@ -2,7 +2,7 @@
 //   missing -> "Archivo no disponible. Pide que se vuelva a subir."
 //   embed   -> vista previa del propio proveedor (previsto, hoy no se usa)
 //   inline  -> el archivo se pide al backend y se dibuja según su tipo (mime):
-//   .pdf            -> visor del navegador (iframe)
+//   .pdf            -> páginas dibujadas con pdf.js (PdfPagesViewer)
 //   .png .jpg .jpeg -> imagen con zoom
 //   .docx           -> docx-preview
 //   .xlsx           -> SheetJS: pestañas por hoja y tabla de React
@@ -26,6 +26,7 @@ import {
   saveBlob,
   type FileRef,
 } from '@/services/files.service'
+import { PdfPagesViewer } from './PdfPagesViewer'
 import { MAX_SHEET_COLUMNS, MAX_SHEET_ROWS, readWorkbook, rowsLimitNotice, viewerKindForMime, type SheetData, type ViewerKind } from './visorDocumento.utils'
 
 function useObjectUrl(blob: Blob): string | null {
@@ -65,9 +66,8 @@ function Notice({ icon, title, text }: { icon: 'alert' | 'file'; title: string; 
 // ── Visores por formato ──────────────────────────────────────────────────────
 
 function PdfViewer({ blob, fileName }: { blob: Blob; fileName: string }) {
-  const url = useObjectUrl(blob)
-  if (!url) return null
-  return <iframe src={`${url}#toolbar=1&navpanes=1&view=FitH`} title={`Vista previa de ${fileName}`} className="h-full w-full border-0 bg-zinc-900" />
+  // Páginas dibujadas con pdf.js (ajustadas al ancho, con paginación y zoom), no la vista de impresión del navegador.
+  return <PdfPagesViewer blob={blob} fileName={fileName} />
 }
 
 function ImageViewer({ blob, fileName }: { blob: Blob; fileName: string }) {
