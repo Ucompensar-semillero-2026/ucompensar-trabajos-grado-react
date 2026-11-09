@@ -12,6 +12,16 @@ import { NO_ACCESS_PATH } from '@/config/roles'
 /** Confirmación del cierre voluntario de sesión (única pantalla que informa que la sesión se cerró). */
 export const SESSION_CLOSED_PATH = '/sesion-cerrada'
 
+/**
+ * Cierre por inactividad (checklist de seguridad #4; OWASP ASVS 3.3.2, ISO 27002 8.5). El tiempo real lo decide el
+ * servidor (`idle_timeout_minutes` en GET /auth/me); este valor solo se usa hasta recibirlo.
+ */
+export const DEFAULT_IDLE_TIMEOUT_MINUTES = 15
+/** Cuánto antes del cierre aparece el aviso «¿Sigues ahí?». */
+export const IDLE_WARNING_MS = 2 * 60 * 1000
+/** Texto exacto con el que el servidor rechaza una sesión cerrada por inactividad (app/domains/auth/sessions.py). */
+export const IDLE_EXPIRED_DETAIL = 'Tu sesión se cerró por inactividad'
+
 export type RouteArea = 'protected' | 'public' | 'neutral'
 
 const PROTECTED_PREFIXES = [

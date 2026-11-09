@@ -15,7 +15,8 @@ const MIME_BY_EXT: Record<string, string[]> = {
 }
 
 /** Formatos que el navegador puede mostrar sin descargar. */
-export const PREVIEWABLE = ['.pdf', '.png', '.jpg', '.jpeg']
+// Formatos que el visor de documentos muestra dentro de la plataforma (el resto: solo descargar).
+export const PREVIEWABLE = ['.pdf', '.png', '.jpg', '.jpeg', '.docx', '.xlsx']
 
 export function extensionOf(fileName: string): string {
   const dot = fileName.lastIndexOf('.')

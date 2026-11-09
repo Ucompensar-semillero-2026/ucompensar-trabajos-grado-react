@@ -11,8 +11,9 @@ import {
   msalInstance,
 } from '@/config/msal'
 import type { EndSessionOptions } from '@/components/auth/AuthFlowContext'
-import { SESSION_CLOSED_PATH } from '@/config/sessionPolicy'
-import { setFlash, type PublicFlash } from '@/services/sessionFlash'
+import { IDLE_EXPIRED_DETAIL, SESSION_CLOSED_PATH } from '@/config/sessionPolicy'
+import { markIdleLogout, setFlash, type PublicFlash } from '@/services/sessionFlash'
+import { idleTimeoutMinutes, setIdleTimeoutMinutes } from '@/services/idleClock'
 import { NO_ACCESS_PATH } from '@/config/roles'
 import { homePathFor, knownModules } from '@/config/access'
 
@@ -35,6 +36,10 @@ export function toStoreUser(me: MeOut) {
     email: me.email,
     roles: [...me.roles],
     modules: knownModules(me.modules),
+    privacy:
+      me.privacy_policy_version && me.privacy_policy_url
+        ? { accepted: me.privacy_accepted === true, version: me.privacy_policy_version, url: me.privacy_policy_url }
+        : undefined,
   }
 }
 
@@ -103,7 +108,9 @@ export function useAuth() {
       authApi
         .microsoftLogin(outcome.result.idToken)
         .then(async (tokens) => {
-          const user = toStoreUser(await authApi.me(tokens.access_token))
+          const me = await authApi.me(tokens.access_token)
+          setIdleTimeoutMinutes(me.idle_timeout_minutes)
+          const user = toStoreUser(me)
           if (user.modules.length === 0) {
             navigateRef.current(NO_ACCESS_PATH, { replace: true })
             return
@@ -145,13 +152,16 @@ export function useAuth() {
       .refresh()
       .then(async (tokens) => {
         const user = await authApi.me(tokens.access_token)
+        setIdleTimeoutMinutes(user.idle_timeout_minutes)
         if (!cancelled) {
           localStorage.setItem(SESSION_FLAG_KEY, 'true')
           loginSuccess(toStoreUser(user), tokens.access_token)
         }
       })
-      .catch(() => {
-        // Sin cookie o ya expiró (8 h para Microsoft) -- limpiar bandera y dejar deslogueado
+      .catch((err) => {
+        // Sin cookie, ya expiró (8 h para Microsoft) o se cerró por inactividad -- limpiar bandera y dejar
+        // deslogueado. Si fue por inactividad, el login lo explica.
+        if (err instanceof ApiError && err.message === IDLE_EXPIRED_DETAIL) markIdleLogout(idleTimeoutMinutes())
         localStorage.removeItem(SESSION_FLAG_KEY)
       })
       .finally(() => {
@@ -169,7 +179,9 @@ export function useAuth() {
     setMicrosoftError(null)
     try {
       await msalInstance.loginRedirect({ ...loginRequest, state: safeReturnPath(returnTo) ?? undefined })
-    } catch {
+    } catch (err) {
+      // El detalle (p. ej. un error de configuración de MSAL) queda en la consola para poder diagnosticarlo.
+      console.error('No se pudo abrir el inicio de sesión de Microsoft', err)
       setMicrosoftError('No se pudo abrir el inicio de sesión de Microsoft.')
     }
   }, [])
@@ -194,18 +206,20 @@ export function useAuth() {
       const { strict = false, reason, returnTo } = options
       // Solo el cierre manual lleva a la pantalla de confirmación; los automáticos nunca muestran avisos de logout.
       const manual = reason === 'manual'
+      // Inactividad: se avisa al servidor (bitácora) y el login explica por qué se cerró la sesión.
+      const idle = reason === 'idle'
       const flash: PublicFlash | undefined = manual ? { kind: 'manual_logout' } : options.flash
-      const destination = manual ? SESSION_CLOSED_PATH : returnTo ? safeReturnPath(returnTo) : null
+      const destination = manual ? SESSION_CLOSED_PATH : idle ? '/login' : returnTo ? safeReturnPath(returnTo) : null
 
       const run = async (): Promise<string | null> => {
         if (strict) {
           try {
-            await authApi.logout()
+            await authApi.logout(idle ? 'inactividad' : undefined)
           } catch (err) {
             return err instanceof ApiError ? err.message : 'No se pudo conectar con el servidor'
           }
         } else {
-          authApi.logout().catch(() => {
+          authApi.logout(idle ? 'inactividad' : undefined).catch(() => {
             // Aunque falle el aviso al backend, la sesión local queda cerrada -- no bloquear al usuario.
           })
         }
@@ -213,6 +227,7 @@ export function useAuth() {
         localStorage.removeItem(SESSION_FLAG_KEY)
         storeLogout()
         clearMicrosoftSession().catch(() => {})
+        if (idle) markIdleLogout(idleTimeoutMinutes())
         if (destination) {
           if (flash) setFlash(flash)
           navigateRef.current(destination, { replace: true })
@@ -235,11 +250,17 @@ export function useAuth() {
     void closeSession({ reason: 'manual' })
   }, [closeSession])
 
+  /** Cierre por inactividad (ver useIdleLogout). */
+  const idleLogout = useCallback(() => {
+    void closeSession({ reason: 'idle' })
+  }, [closeSession])
+
   /** Salida del área autenticada hacia una página pública. */
   const leavePortal = useCallback((publicPath: string) => closeSession({ reason: 'leave_authenticated_area', returnTo: publicPath }), [closeSession])
 
   return {
     logout,
+    idleLogout,
     leavePortal,
     endSession,
     loginWithMicrosoft,

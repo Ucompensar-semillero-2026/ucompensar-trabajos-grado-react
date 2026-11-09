@@ -4,7 +4,8 @@ import { CheckCircle2, Download, Eye, ShieldAlert, Users } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { cn } from '@/utils/cn'
 import type { RiskLevel, StudentRow } from '@/services/monitoring.service'
-import { RiskLevelBadge, formatDay, formatMoment, formatMomentDay } from './monitoringUi'
+import { RiskLevelBadge } from './monitoringUi'
+import { formatDay, formatMoment, formatMomentDay } from './monitoringUi.utils'
 import { RISK_TONE, alertReasons, expedientePath, initials, rowsToCsv } from './monitoringHelpers'
 
 const NUMERIC = new Set(['Asignadas', 'Entregadas', 'Pendientes', 'Vencidas'])

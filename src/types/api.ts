@@ -17,6 +17,12 @@ export interface BackendUser {
 export interface MeOut extends BackendUser {
   roles: string[]
   modules: string[]
+  /** Minutos sin actividad tras los que el servidor cierra la sesión. */
+  idle_timeout_minutes?: number
+  /** Ley 1581: ¿ya aceptó la política vigente? (ver PrivacyConsentDialog) */
+  privacy_accepted?: boolean
+  privacy_policy_version?: string
+  privacy_policy_url?: string
 }
 
 export interface ModalityOut {

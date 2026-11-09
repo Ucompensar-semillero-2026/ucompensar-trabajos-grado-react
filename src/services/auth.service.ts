@@ -46,5 +46,19 @@ export const authApi = {
   // o ya expiró -- en ese caso, a login normal.
   refresh: () => request<TokenResponse>('/auth/refresh', { method: 'POST' }),
 
-  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  // `inactividad`: la página cierra la sesión por tiempo sin uso (queda así en la bitácora del servidor).
+  logout: (reason?: 'inactividad') =>
+    request<void>(reason ? `/auth/logout?reason=${reason}` : '/auth/logout', { method: 'POST' }),
+
+  // Avisa al servidor que la persona está usando la plataforma (ver services/activity.ts). Va con la cookie de
+  // sesión, sin access token: 401 si la sesión ya se cerró.
+  activity: () => request<void>('/auth/activity', { method: 'POST' }),
+
+  // Ley 1581: guarda la autorización de tratamiento de datos (el servidor registra fecha, versión, IP y navegador).
+  acceptPrivacy: (accessToken: string, policyVersion: string) =>
+    request<void>('/auth/privacy-consent', {
+      method: 'POST',
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ policy_version: policyVersion }),
+    }),
 }

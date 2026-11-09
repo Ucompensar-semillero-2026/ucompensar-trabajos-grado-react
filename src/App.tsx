@@ -3,6 +3,11 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAppStore } from '@/stores/app.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useAuth } from '@/hooks/useAuth'
+import { useIdleLogout } from '@/hooks/useIdleLogout'
+import { IdleWarningDialog } from '@/components/auth/IdleWarningDialog'
+import { PrivacyConsentDialog } from '@/components/auth/PrivacyConsentDialog'
+import { authApi } from '@/services/auth.service'
+import { ApiError } from '@/services/http'
 import { useSessionExitPolicy } from '@/hooks/useSessionExitPolicy'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { AuthFlowContext } from '@/components/auth/AuthFlowContext'
@@ -19,6 +24,7 @@ import { NuevoTramiteSection } from '@/components/tramites/NuevoTramiteSection'
 import { BuscarSection } from '@/components/tramites/BuscarSection'
 import { TrazabilidadSection } from '@/components/trazabilidad/TrazabilidadSection'
 import { DocumentsRoute } from '@/components/proceso/DocumentsRoute'
+import { GradeReportPage } from '@/components/proceso/documentos/GradeReportPage'
 import { MiProcesoSection } from '@/components/proceso/MiProcesoSection'
 import { TutorPanel, TutorProjectsPage, TutorPlansPage, TutorReviewsPage, TutorStatsPage } from '@/components/tutor/TutorPages'
 import { ProjectExpediente } from '@/components/tutor/ProjectExpediente'
@@ -47,7 +53,7 @@ import { MyDatesPage } from '@/components/seguimiento/misfechas/MyDatesPage'
 export default function App() {
   const { isAuthenticated, currentUser } = useAppStore()
   const { theme } = useThemeStore()
-  const { logout, leavePortal, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
+  const { logout, idleLogout, leavePortal, endSession, loginWithMicrosoft, microsoftError, isRestoringSession } = useAuth()
   const homePath = currentUser ? homePathFor(currentUser.modules) : '/login'
   const location = useLocation()
 
@@ -64,6 +70,9 @@ export default function App() {
   // Política de sesión: cierra la sesión al salir del portal hacia una página pública (ver useSessionExitPolicy).
   useSessionExitPolicy(leavePortal, isRestoringSession)
 
+  // Cierre por inactividad: solo con sesión abierta (ver useIdleLogout).
+  const { secondsLeft: idleSecondsLeft, stayConnected } = useIdleLogout(isAuthenticated && !isRestoringSession, idleLogout)
+
   // Mientras se intenta restaurar la sesión (ver useAuth), no renderizar
   // las rutas todavía: si no, alguien con una cookie de refresh válida
   // vería un parpadeo a /login antes de que la restauración termine y lo
@@ -78,6 +87,26 @@ export default function App() {
 
   return (
     <AuthFlowContext.Provider value={{ loginWithMicrosoft, endSession, loginError: microsoftError }}>
+      <IdleWarningDialog secondsLeft={idleSecondsLeft} onStay={stayConnected} onLogout={logout} />
+      {isAuthenticated && currentUser?.privacy && (
+        <PrivacyConsentDialog
+          open={!currentUser.privacy.accepted}
+          policyUrl={currentUser.privacy.url}
+          policyVersion={currentUser.privacy.version}
+          onAccept={async () => {
+            const { accessToken } = useAppStore.getState()
+            if (!accessToken || !currentUser.privacy) return 'Tu sesión terminó. Vuelve a iniciar sesión.'
+            try {
+              await authApi.acceptPrivacy(accessToken, currentUser.privacy.version)
+              useAppStore.setState((s) => (s.currentUser?.privacy ? { currentUser: { ...s.currentUser, privacy: { ...s.currentUser.privacy, accepted: true } } } : {}))
+              return null
+            } catch (err) {
+              return err instanceof ApiError ? err.message : 'No se pudo guardar tu aceptación. Intenta de nuevo.'
+            }
+          }}
+          onLogout={logout}
+        />
+      )}
       <Routes>
         {/* Public institutional prototype */}
         <Route path="/" element={<InstitutionalHome />} />
@@ -165,6 +194,9 @@ export default function App() {
           <Route path="/trazabilidad" element={<TrazabilidadSection />} />
           <Route path="/trazabilidad/:processId" element={<TrazabilidadSection />} />
           <Route path="/documentos" element={<DocumentsRoute />} />
+          {/* Libro de calificaciones de un proyecto: una sola página para todos los roles, sin opción propia en el menú (sigue marcando «Mis tareas»).
+              El estudiante ve lo suyo y publicado; el tutor, el evaluador y Coordinación lo abren desde el proyecto (?proceso=). El backend decide qué se ve. */}
+          <Route path="/documentos/reporte-notas" element={<RequireModule><GradeReportPage /></RequireModule>} />
           <Route
             path="/comites"
             element={

@@ -37,7 +37,7 @@ export function BuscarSection() {
   }, [processes, query])
 
   return (
-    <div className="animate-fade-in max-w-[480px] space-y-3">
+    <div className="animate-fade-in w-full min-w-0 space-y-3">
       <Card>
         <h3 className="text-[12.5px] font-bold text-neutral-text mb-3">
           Buscar trámite

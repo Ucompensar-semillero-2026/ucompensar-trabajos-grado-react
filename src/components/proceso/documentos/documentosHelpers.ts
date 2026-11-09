@@ -1,5 +1,5 @@
 import type { DeliverableOut, ReviewDecision, StageOut, SubmissionOut, WorkPlanOut } from '@/services/workplan.service'
-import { allDeliverables, stagesBySemester } from '../workPlanUi'
+import { allDeliverables, stagesBySemester } from '../workPlanUi.utils'
 
 // Reglas de PRESENTACIÓN del centro de documentos. Los estados oficiales y los porcentajes los calcula el backend
 // (`status`, `progress`); aquí solo se combinan datos que ya llegaron (nada se inventa ni se estima).

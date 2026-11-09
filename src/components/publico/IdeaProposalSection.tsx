@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
+import { DEFAULT_PRIVACY_POLICY_URL } from '@/config/privacy'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, CheckCircle2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui'
@@ -8,39 +9,11 @@ import { ApiError } from '@/services/http'
 import type { PublicFlash } from '@/services/sessionFlash'
 import { MODALITY_LABELS, PROPOSAL_LIMITS, proposalsApi, type ProposalOut, type SuggestedModality } from '@/services/proposals.service'
 import { hasModule } from '@/config/access'
+import { clearPendingSubmit, memberRowErrors, readPendingSubmit, validateFields, Draft, FIELD_ORDER, IdeaErrors, PENDING_KEY, PendingSubmit, norm, parseEmails, splitEmails, IdeaField } from './ideaProposal.utils'
 
 export const NOT_STUDENT_MESSAGE = 'Solo las cuentas con rol Estudiante pueden presentar propuestas'
 export const PROPOSALS_CATALOG_PATH = '/proyectos-de-grado'
 const DRAFT_KEY = 'ucomp_idea_draft'
-// Envío en curso: se marca antes de ir a Microsoft y se CONSUME (se borra) antes de crear la propuesta, de modo que
-// una recarga, el doble montaje de StrictMode o un reintento nunca la registren dos veces. Sin tokens ni credenciales.
-const PENDING_KEY = 'ucomp_idea_pending'
-const PENDING_TTL_MS = 10 * 60 * 1000
-
-interface PendingSubmit {
-  returnPath: string
-  at: number
-}
-
-export function readPendingSubmit(): PendingSubmit | null {
-  try {
-    const raw = sessionStorage.getItem(PENDING_KEY)
-    if (!raw) return null
-    const pending = JSON.parse(raw) as PendingSubmit
-    return Date.now() - pending.at <= PENDING_TTL_MS ? pending : null
-  } catch {
-    return null
-  }
-}
-
-export function clearPendingSubmit() {
-  try {
-    sessionStorage.removeItem(PENDING_KEY)
-  } catch {
-    // nada que limpiar
-  }
-}
-
 function markPendingSubmit(returnPath: string) {
   try {
     sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnPath, at: Date.now() } satisfies PendingSubmit))
@@ -55,20 +28,6 @@ function takePendingSubmit(): boolean {
   clearPendingSubmit()
   return pending !== null
 }
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-
-interface Draft {
-  title: string
-  modality: SuggestedModality
-  problem: string
-  solution: string
-  impact: string
-  members: string[] // una fila por compañero; las filas vacías se ignoran al validar y enviar
-  tutor: string
-  confirm: boolean
-  policy: boolean
-}
-
 const EMPTY: Draft = { title: '', modality: 'por_definir', problem: '', solution: '', impact: '', members: [''], tutor: '', confirm: false, policy: false }
 
 function readDraft(): Draft {
@@ -100,67 +59,9 @@ function clearDraft() {
   }
 }
 
-const norm = (value: string) => value.trim().toLowerCase()
-const splitEmails = (raw: string) => raw.split(/[\s,;]+/).map(norm).filter(Boolean)
-const parseEmails = (rows: string[]) => rows.flatMap(splitEmails)
-
-/** Error de cada fila (null si es válida o está vacía): formato, autor y duplicados sin distinguir mayúsculas. */
-export function memberRowErrors(rows: string[], authorEmail: string | null): Array<string | null> {
-  const seen = new Set<string>()
-  return rows.map((row) => {
-    const email = norm(row)
-    if (!email) return null
-    if (splitEmails(row).length > 1) return 'Escribe un solo correo por fila.'
-    if (!EMAIL.test(email) || email.length > PROPOSAL_LIMITS.email) return 'El correo no tiene un formato válido.'
-    if (authorEmail && email === norm(authorEmail)) return 'No agregues tu propio correo: tú ya eres el autor.'
-    if (seen.has(email)) return 'Este correo está repetido.'
-    seen.add(email)
-    return null
-  })
-}
-
-export type IdeaField = 'title' | 'problem' | 'solution' | 'impact' | 'members' | 'tutor' | 'confirm' | 'policy'
-export type IdeaErrors = Partial<Record<IdeaField, string>>
-
-const FIELD_ORDER: IdeaField[] = ['title', 'problem', 'solution', 'impact', 'members', 'tutor', 'confirm', 'policy']
 const FIELD_LABEL: Record<IdeaField, string> = {
   title: 'el título', problem: 'el problema o necesidad', solution: 'la propuesta de solución', impact: 'el impacto esperado',
   members: 'los correos de los compañeros', tutor: 'el correo del docente', confirm: 'la confirmación de la información', policy: 'el tratamiento de datos',
-}
-
-/**
- * Mismas reglas que valida FastAPI (que sigue siendo la autoridad). Obligatorios: título, problema, solución y las dos
- * confirmaciones. Opcionales: impacto, compañeros y docente (vacíos no bloquean; si se escriben, se valida el formato).
- * `consents: false` omite las confirmaciones (visitante anónimo que solo inicia sesión; se exigen al enviar).
- */
-export function validateFields(draft: Draft, authorEmail: string | null, consents = true): IdeaErrors {
-  const errors: IdeaErrors = {}
-  if (draft.title.trim().length < 3) errors.title = 'Escribe un título de al menos 3 caracteres.'
-  else if (draft.title.trim().length > PROPOSAL_LIMITS.title) errors.title = `El título admite máximo ${PROPOSAL_LIMITS.title} caracteres.`
-  if (draft.problem.trim().length < 10) errors.problem = 'Describe el problema o la necesidad (mínimo 10 caracteres).'
-  else if (draft.problem.length > PROPOSAL_LIMITS.text) errors.problem = `El problema admite máximo ${PROPOSAL_LIMITS.text} caracteres.`
-  if (draft.solution.trim().length < 10) errors.solution = 'Describe tu propuesta de solución y objetivos (mínimo 10 caracteres).'
-  else if (draft.solution.length > PROPOSAL_LIMITS.text) errors.solution = `La solución admite máximo ${PROPOSAL_LIMITS.text} caracteres.`
-  if (draft.impact.length > PROPOSAL_LIMITS.impact) errors.impact = `El impacto esperado admite máximo ${PROPOSAL_LIMITS.impact} caracteres.`
-  const rowErrors = memberRowErrors(draft.members, authorEmail)
-  const firstBad = rowErrors.findIndex(Boolean)
-  if (firstBad >= 0) errors.members = `Compañero ${firstBad + 1} («${norm(draft.members[firstBad])}»): ${rowErrors[firstBad]}`
-  else if (parseEmails(draft.members).length > PROPOSAL_LIMITS.maxMembers) errors.members = `Puedes proponer como máximo ${PROPOSAL_LIMITS.maxMembers} compañeros.`
-  const tutor = norm(draft.tutor)
-  if (tutor && (!EMAIL.test(tutor) || tutor.length > PROPOSAL_LIMITS.email)) errors.tutor = 'El correo del docente propuesto no tiene un formato válido.'
-  else if (tutor && authorEmail && tutor === norm(authorEmail)) errors.tutor = 'El docente propuesto no puede ser el propio autor.'
-  if (consents) {
-    if (!draft.confirm) errors.confirm = 'Confirma que la información es correcta y que tus compañeros conocen su participación.'
-    if (!draft.policy) errors.policy = 'Debes aceptar el tratamiento de datos para enviar la propuesta.'
-  }
-  return errors
-}
-
-/** Primer error del formulario (en el orden en que se muestra) o null si es válido. */
-export function validateIdea(draft: Draft, authorEmail: string | null): string | null {
-  const errors = validateFields(draft, authorEmail)
-  const first = FIELD_ORDER.find((field) => errors[field])
-  return first ? errors[first]! : null
 }
 
 const fieldClass =
@@ -438,7 +339,13 @@ export function IdeaProposalSection({ modality, returnPath = PROPOSALS_CATALOG_P
             {fieldErrors.confirm && <p className="-mt-3 text-xs font-medium text-red-700">{fieldErrors.confirm}</p>}
             <label className="flex items-start gap-3 text-sm text-[#172B3A]">
               <input type="checkbox" className="mt-1 h-4 w-4 accent-[#FF6B35]" checked={draft.policy} onChange={(e) => set('policy', e.target.checked)} />
-              Acepto el tratamiento de mis datos personales conforme a la política institucional de UCompensar.
+              <span>
+                Acepto el tratamiento de mis datos personales conforme a la{' '}
+                <a href={DEFAULT_PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0876B9] underline underline-offset-2">
+                  política de tratamiento de datos de UCompensar
+                </a>
+                . Guardamos la fecha de tu aceptación como constancia.
+              </span>
             </label>
             {fieldErrors.policy && <p className="-mt-3 text-xs font-medium text-red-700">{fieldErrors.policy}</p>}
 

@@ -16,6 +16,11 @@ export const isMicrosoftLoginConfigured = Boolean(clientId && tenantId)
 // sessionStorage: la caché de MSAL muere al cerrar la pestaña. La sesión de
 // la app no depende de ella -- después del login se cambia el id_token por
 // la sesión propia del backend (cookie HttpOnly de refresh, ver useAuth).
+//
+// NO usar 'memoryStorage': MSAL 5 bloquea el inicio de sesión por redirección
+// con esa caché (error in_mem_redirect_unavailable en redirectPreflightCheck) y
+// nadie puede entrar. Pasó en producción el 8-nov-2026. El riesgo de XSS sobre
+// sessionStorage lo mitiga la CSP de vercel.json (checklist #7 y #20).
 export const msalInstance = new PublicClientApplication({
   auth: {
     clientId,

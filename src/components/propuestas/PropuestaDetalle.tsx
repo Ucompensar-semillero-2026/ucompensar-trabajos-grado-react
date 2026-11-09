@@ -10,7 +10,8 @@ import { processesApi, type TutorCandidate } from '@/services/processes.service'
 import { MODALITY_LABELS, proposalsApi, type ConvertOut, type ProposalOut, type ReviewAction } from '@/services/proposals.service'
 import { formatRelativeDate } from '@/utils/format'
 import type { ModalityOut } from '@/types/api'
-import { EVENT_LABELS, ProposalStatusBadge, inputClass } from './propuestasUi'
+import { ProposalStatusBadge, inputClass } from './propuestasUi'
+import { EVENT_LABELS } from './propuestasUi.utils'
 
 // Código de `modalities` que corresponde a cada modalidad sugerida (espejo de MODALITY_CODE_BY_SUGGESTION del backend).
 const MODALITY_CODE: Record<string, string | null> = {

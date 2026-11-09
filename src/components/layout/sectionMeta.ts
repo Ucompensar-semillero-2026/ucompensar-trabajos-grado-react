@@ -45,7 +45,9 @@ type RoleMeta = Partial<Record<NavSection, Partial<SectionMeta>>>
 const STUDENT_META: RoleMeta = {
   dashboard: { description: 'Resumen de tu actividad y de tus proyectos de trabajo de grado.', art: true },
   tramites: { description: 'Consulta el estado de tus postulaciones y proyectos de grado.', art: true },
-  documentos: { description: 'Gestiona, carga y realiza el seguimiento de tus tareas y entregables del plan de trabajo.', illustration: 'documents' },
+  // «Mis tareas» (/documentos) se presenta como «Mis tareas y calificaciones»: entregables por semestre con su estado, nota y fecha límite.
+  // El nombre del menú no cambia (sigue saliendo del catálogo navLabels). Sin fotografía ni ilustración: el encabezado es sobrio.
+  documentos: { title: 'Mis tareas y calificaciones', description: 'Consulta las notas y observaciones de tus entregables del proceso de grado.', art: false },
 }
 
 const TEACHER_META: RoleMeta = {
@@ -63,6 +65,14 @@ const COORDINATION_META: RoleMeta = {
 }
 
 const ROLE_META: Record<Audience, RoleMeta> = { student: STUDENT_META, teacher: TEACHER_META, coordination: COORDINATION_META, other: {} }
+
+/** Expediente de un proyecto del tutor (/tutor/proyectos/:id, cualquier pestaña). */
+const TUTOR_PROJECT_PATH = /^\/tutor\/proyectos\/[^/]+\/?$/
+
+/** En el expediente el encabezado de página (título y descripción) sobra: el menú ya indica la sección y el proyecto trae su propia barra. */
+export function hidesTutorProjectHeader(pathname: string): boolean {
+  return TUTOR_PROJECT_PATH.test(pathname)
+}
 
 export function getSectionMeta(section: NavSection, audience: Audience): SectionMeta {
   const base = DEFAULT_META[section]

@@ -2,14 +2,18 @@
 // por dominio, igual que app/domains/ en el backend) necesita importar
 // para hablar con la API. Nada de lógica de negocio vive acá.
 import { useAppStore } from '@/stores/app.store'
+import { IDLE_EXPIRED_DETAIL } from '@/config/sessionPolicy'
+import { markIdleLogout } from './sessionFlash'
+import { idleTimeoutMinutes } from './idleClock'
 
 // In development, use Vite's same-origin /api proxy to avoid browser CORS
 // restrictions. Deployments can provide VITE_API_URL pointing to the API base.
 const API_URL = (import.meta.env.VITE_API_URL?.trim() || '/api').replace(/\/+$/, '')
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
 
-// El backend devuelve rutas relativas para archivos (ej. /local-storage/...)
-// -- hay que anteponerles el origen para que el navegador los pueda abrir.
+// El visor de documentos pide los archivos con la sesión (files.service). Esto queda para las
+// pantallas que todavía abren la URL firmada que manda el backend (download_url) y para las
+// URLs prefirmadas de subida del adaptador local, que son relativas a la API.
 export function resolveFileUrl(path: string): string {
   return path.startsWith('http') ? path : `${API_ORIGIN}${path}`
 }
@@ -21,6 +25,27 @@ export class ApiError extends Error {
     super(message)
     this.status = status
   }
+}
+
+/**
+ * Mensaje cuando el servidor no mandó uno legible (`detail` de texto). Antes todo caía en «Error de conexión con el
+ * servidor», aunque la conexión estuviera bien y la causa fuera otra (datos inválidos, demasiados intentos...).
+ */
+export function messageForStatus(status: number): string {
+  if (status === 0) return 'No se pudo conectar con el servidor. Revisa tu conexión a internet.'
+  if (status === 401) return 'Tu sesión terminó. Vuelve a iniciar sesión.'
+  if (status === 403) return 'No tienes permiso para hacer esto.'
+  if (status === 404) return 'No encontramos lo que buscas.'
+  if (status === 413) return 'El archivo es demasiado grande.'
+  if (status === 422 || status === 400) return 'Revisa los datos enviados.'
+  if (status === 429) return 'Hiciste demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.'
+  if (status >= 500) return 'El servidor tuvo un problema. Intenta de nuevo en unos minutos.'
+  return 'No se pudo completar la solicitud.'
+}
+
+function detailOf(body: unknown, status: number): string {
+  const detail = body && typeof body === 'object' && 'detail' in body ? (body as { detail?: unknown }).detail : undefined
+  return typeof detail === 'string' && detail.trim() ? detail : messageForStatus(status)
 }
 
 export function authHeaders(accessToken: string) {
@@ -56,7 +81,11 @@ let refreshing: Promise<string | null> | null = null
 function renewAccessToken(): Promise<string | null> {
   refreshing ??= send('/auth/refresh', { method: 'POST' })
     .then(async (res) => {
-      if (!res.ok) return null
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { detail?: unknown } | null
+        if (body?.detail === IDLE_EXPIRED_DETAIL) markIdleLogout(idleTimeoutMinutes())
+        return null
+      }
       const body = (await res.json()) as { access_token?: string }
       return body.access_token ?? null
     })
@@ -123,8 +152,7 @@ export async function uploadWithProgress<T>(path: string, options: UploadOptions
     if (token) res = await xhrSend<T>(path, token, options)
   }
   if (res.status < 200 || res.status >= 300) {
-    const detail = res.data && typeof res.data === 'object' && 'detail' in res.data && typeof res.data.detail === 'string' ? res.data.detail : 'Error de conexión con el servidor'
-    throw new ApiError(res.status, detail)
+    throw new ApiError(res.status, detailOf(res.data, res.status))
   }
   return res.data as T
 }
@@ -161,7 +189,8 @@ export function putToPresignedUrl(url: string, file: File, { headers, onProgress
   })
 }
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+/** Envía con la sesión; si el access_token venció (401), lo renueva y repite UNA vez. */
+async function sendAuthorized(path: string, options: RequestInit): Promise<Response> {
   let res: Response
   try {
     res = await send(path, options)
@@ -175,14 +204,18 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
       }
     }
   } catch {
-    throw new ApiError(0, 'No se pudo conectar con el servidor')
+    throw new ApiError(0, messageForStatus(0))
   }
 
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    const detail = typeof body?.detail === 'string' ? body.detail : 'Error de conexión con el servidor'
-    throw new ApiError(res.status, detail)
+    throw new ApiError(res.status, detailOf(body, res.status))
   }
+  return res
+}
+
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await sendAuthorized(path, options)
 
   // 204 (ej. /auth/logout) no trae body -- res.json() reventaría con
   // "Unexpected end of JSON input" si se llama sobre una respuesta vacía.
@@ -191,4 +224,9 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   }
 
   return res.json() as Promise<T>
+}
+
+/** Igual que request(), pero devuelve la respuesta sin leer (archivos: cabeceras y cuerpo binario). */
+export function requestRaw(path: string, options: RequestInit = {}): Promise<Response> {
+  return sendAuthorized(path, options)
 }

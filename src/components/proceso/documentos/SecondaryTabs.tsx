@@ -4,7 +4,8 @@ import { cn } from '@/utils/cn'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError, resolveFileUrl } from '@/services/http'
 import { documentsApi, type ProcessDocumentOut } from '@/services/documents.service'
-import { formatMoment } from '@/components/seguimiento/monitoringUi'
+import { filePaths } from '@/services/files.service'
+import { formatMoment } from '@/components/seguimiento/monitoringUi.utils'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
 import type { WorkPlanOut } from '@/services/workplan.service'
 import { StatusPill, EmptyNote } from './documentosUi'
@@ -69,7 +70,7 @@ export function ProcessDocumentsTab({ processId }: { processId: string }) {
                 type="button"
                 className={linkBtn}
                 aria-label={`Ver ${doc.file_name}`}
-                onClick={() => setViewing({ public_id: doc.public_id, file_name: doc.file_name, download_url: doc.download_url, documentType: doc.document_type.name, version: doc.version, status: doc.status })}
+                onClick={() => setViewing({ public_id: doc.public_id, file_name: doc.file_name, file_path: filePaths.document(doc.public_id), documentType: doc.document_type.name, version: doc.version, status: doc.status })}
               >
                 <Eye size={14} aria-hidden="true" />Ver
               </button>

@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, FileCheck2, Send } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { DocumentViewerModal, type ViewerDocument } from '@/components/documentos/DocumentViewerModal'
+import { filePaths } from '@/services/files.service'
 import { TeamPanel } from '@/components/tutor/TeamPanel'
 import { ApiError } from '@/services/http'
 import { documentsApi, type ChecklistItemOut, type ProcessDocumentOut } from '@/services/documents.service'
@@ -193,13 +194,13 @@ export function TrazabilidadSection() {
 
   if (isLoading && !process) return <div role="status" className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">Cargando el expediente de trazabilidad…</div>
 
-  if (accessDenied) return <div className="max-w-3xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[var(--shadow-sm)]">
+  if (accessDenied) return <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[var(--shadow-sm)]">
     <h1 className="text-xl font-bold text-[var(--color-text)]">Acceso no autorizado</h1>
     <p className="mt-2 text-sm text-[var(--color-text-muted)]">Este trámite no está disponible para tu usuario.</p>
     <Link to="/trazabilidad" className="mt-5 inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">Volver a trazabilidad</Link>
   </div>
 
-  if (error || !process || !traceData) return <div className="max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+  if (error || !process || !traceData) return <div className="mx-auto w-full max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
     <p>{error ?? 'No se encontró el trámite.'}</p>
     <button type="button" onClick={() => void load()} className="mt-3 font-semibold underline">Reintentar</button>
   </div>
@@ -210,7 +211,7 @@ export function TrazabilidadSection() {
       ? { to: '/tramites', label: 'Volver a Mis proyectos' }
       : { to: '/trazabilidad', label: hasModule(currentUser, 'workspace-tutor') || hasModule(currentUser, 'workspace-coordination') ? 'Volver a Seguimiento de proyectos' : 'Volver al listado de trazabilidad' }
 
-  return <div className="max-w-6xl space-y-5 animate-fadeIn">
+  return <div className="w-full min-w-0 space-y-5 animate-fadeIn">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <Link to={backTo.to} className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary)] hover:underline"><ArrowLeft size={14} aria-hidden="true" />{backTo.label}</Link>
@@ -259,6 +260,7 @@ export function TrazabilidadSection() {
     </section>}
 
     {tab === 'docs' && <TabDocumentos
+      processId={process.public_id}
       checklist={checklist}
       documents={documents}
       workPlanDocuments={workPlanDocuments}
@@ -275,7 +277,7 @@ export function TrazabilidadSection() {
         setActiveViewerDoc({
           public_id: document.public_id,
           file_name: document.file_name,
-          download_url: document.download_url,
+          file_path: filePaths.document(document.public_id),
           studentName: process.student.full_name,
           documentType: document.document_type.name,
           version: document.version,
@@ -287,7 +289,7 @@ export function TrazabilidadSection() {
         setActiveViewerDoc({
           public_id: submission.public_id,
           file_name: submission.file_name,
-          download_url: submission.download_url,
+          file_path: filePaths.submission(process.public_id, submission.public_id),
           studentName: submission.submitted_by.full_name,
           documentType: deliverableTitle,
           version: submission.version,

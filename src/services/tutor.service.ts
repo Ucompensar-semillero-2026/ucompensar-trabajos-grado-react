@@ -37,6 +37,10 @@ export interface PendingReviewOut {
   version: number
   submitted_at: string
   due_date: string | null
+  /** Etapa del entregable, quién hizo ESTA entrega y los integrantes estudiantes del proyecto. */
+  stage_name?: string | null
+  submitted_by?: PersonOut | null
+  team_students?: PersonOut[]
 }
 
 export interface UpcomingDeadlineOut {

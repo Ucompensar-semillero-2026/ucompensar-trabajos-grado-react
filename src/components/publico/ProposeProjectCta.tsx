@@ -5,21 +5,10 @@ import { Lightbulb, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { lockScroll } from '@/utils/scrollLock'
 import type { SuggestedModality } from '@/services/proposals.service'
-import { clearPendingSubmit, IdeaProposalSection, readPendingSubmit } from './IdeaProposalSection'
+import { IdeaProposalSection } from './IdeaProposalSection'
+import { clearPendingSubmit, readPendingSubmit } from './ideaProposal.utils'
 import type { ProjectModality } from './projectCatalog.data'
-
-/**
- * Modalidades en las que se puede proponer un proyecto, con la modalidad sugerida que entiende el backend.
- * "Proyecto aplicado" corresponde al valor `desarrollo_tecnologico` de la API. Las demás modalidades no la habilitan.
- */
-export const PROPOSAL_ENABLED_MODALITIES: Record<string, SuggestedModality> = {
-  PROYECTO_INV: 'proyecto_investigacion',
-  SEMILLERO_INV: 'semillero_investigacion',
-  PROYECTO_EMP: 'emprendimiento',
-  PROYECTO_APL: 'desarrollo_tecnologico',
-}
-
-export const suggestedModalityFor = (modalityId: string): SuggestedModality | null => PROPOSAL_ENABLED_MODALITIES[modalityId] ?? null
+import { suggestedModalityFor } from './proposeProject.utils'
 
 function ProposeProjectDialog({ modality, suggested, returnPath, onClose }: { modality: ProjectModality; suggested: SuggestedModality; returnPath: string; onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null)

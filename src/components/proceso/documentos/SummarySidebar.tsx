@@ -1,6 +1,6 @@
 import { ArrowRight, BarChart3, CheckCircle2, CircleDot, Clock3, FileCheck2, History, MessageSquareWarning, Send, Target } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import { formatMoment } from '@/components/seguimiento/monitoringUi'
+import { formatMoment } from '@/components/seguimiento/monitoringUi.utils'
 import type { DeliverableOut, StageOut } from '@/services/workplan.service'
 import {
   displayStatus,

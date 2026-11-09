@@ -1,7 +1,7 @@
 import { CalendarRange, FolderKanban } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import type { WorkPlanOut } from '@/services/workplan.service'
-import { formatDay } from '../monitoringUi'
+import { formatDay } from '../monitoringUi.utils'
 import { DELIVERABLE_STATUS } from './dossierHelpers'
 import { DossierCard, EmptyNote, SectionError } from './dossierUi'
 import type { DossierSection } from './useStudentDossier'

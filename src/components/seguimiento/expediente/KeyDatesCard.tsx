@@ -3,7 +3,7 @@ import { cn } from '@/utils/cn'
 import type { StudentRow } from '@/services/monitoring.service'
 import type { ProcessOut } from '@/services/processes.service'
 import type { WorkPlanOut } from '@/services/workplan.service'
-import { formatDay, formatMomentDay } from '../monitoringUi'
+import { formatDay, formatMomentDay } from '../monitoringUi.utils'
 import { daysUntil, dueLabel, dueUrgency } from '../monitoringHelpers'
 import { DossierCard } from './dossierUi'
 

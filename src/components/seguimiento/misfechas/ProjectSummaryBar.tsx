@@ -2,7 +2,7 @@ import { ClipboardList } from 'lucide-react'
 import type { ProcessOut } from '@/services/processes.service'
 import type { WorkPlanOut } from '@/services/workplan.service'
 import { AcademicProgressTimeline } from '@/components/proceso/documentos/ProcessOverview'
-import { processLabel } from '@/components/proceso/workPlanUi'
+import { processLabel } from '@/components/proceso/workPlanUi.utils'
 import { cn } from '@/utils/cn'
 import { BUCKET_TONE, projectStateTone } from './misFechasHelpers'
 

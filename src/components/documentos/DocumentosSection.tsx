@@ -1,13 +1,15 @@
-import { Fragment, useEffect, useState, useMemo } from 'react'
+import { Fragment, useCallback, useEffect, useState, useMemo } from 'react'
 import { Card, Button, Badge, EmptyState, SearchField } from '@/components/ui'
 import { Check, X, ShieldCheck, Eye, Download, Filter, RefreshCw, FileSearch } from 'lucide-react'
 import { can } from '@/config/actions'
 import { useAppStore } from '@/stores/app.store'
-import { ApiError, resolveFileUrl } from '@/services/http'
+import { ApiError } from '@/services/http'
 import { documentsApi, type ProcessDocumentOut } from '@/services/documents.service'
 import { processesApi } from '@/services/processes.service'
 import { formatRelativeDate } from '@/utils/format'
 import { DocumentViewerModal, type ViewerDocument } from './DocumentViewerModal'
+import { DownloadFileButton } from './ArchivoAcciones'
+import { filePaths } from '@/services/files.service'
 
 interface Row extends ProcessDocumentOut {
   // allowed_actions del trámite del documento incluye review_document
@@ -43,7 +45,7 @@ export function DocumentosSection() {
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewError, setReviewError] = useState<string | null>(null)
 
-  const loadDocuments = () => {
+  const loadDocuments = useCallback(() => {
     if (!accessToken) return
     setIsLoading(true)
     setError(null)
@@ -65,11 +67,11 @@ export function DocumentosSection() {
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los documentos'))
       .finally(() => setIsLoading(false))
-  }
+  }, [accessToken])
 
   useEffect(() => {
     loadDocuments()
-  }, [accessToken])
+  }, [loadDocuments])
 
   // Unique document types for filter
   const documentTypes = useMemo(() => {
@@ -96,7 +98,7 @@ export function DocumentosSection() {
     setActiveViewerDoc({
       public_id: doc.public_id,
       file_name: doc.file_name,
-      download_url: doc.download_url,
+      file_path: filePaths.document(doc.public_id),
       studentName: doc.studentName,
       documentType: doc.document_type.name,
       version: doc.version,
@@ -311,21 +313,12 @@ export function DocumentosSection() {
                             <Eye size={14} className="text-[var(--color-primary)]" /> Ver en línea
                           </Button>
 
-                          <button
-                            onClick={() => {
-                              const a = window.document.createElement('a')
-                              a.href = resolveFileUrl(doc.download_url)
-                              a.download = doc.file_name
-                              a.target = '_blank'
-                              window.document.body.appendChild(a)
-                              a.click()
-                              window.document.body.removeChild(a)
-                            }}
-                            className="p-1.5 rounded-lg text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors"
-                            title="Descargar archivo"
+                          <DownloadFileButton
+                            file={{ path: filePaths.document(doc.public_id), fileName: doc.file_name }}
+                            className="p-1.5 rounded-lg text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg)] transition-colors disabled:opacity-50"
                           >
-                            <Download size={15} />
-                          </button>
+                            <Download size={15} aria-hidden="true" />
+                          </DownloadFileButton>
 
                           {doc.canReview && doc.status === 'pendiente' && (
                             <>

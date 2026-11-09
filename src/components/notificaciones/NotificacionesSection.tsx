@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Card, Badge } from '@/components/ui'
 import { Select } from '@/components/ui/Input'
-import { Bell, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Bell, CheckCheck, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
 import { ApiError } from '@/services/http'
-import { notificationsApi, type NotificationOut } from '@/services/notifications.service'
+import { notificationsApi, notifyNotificationsChanged, type NotificationOut } from '@/services/notifications.service'
 import { processesApi, type ProcessOut } from '@/services/processes.service'
-import { formatRelativeDate } from '@/utils/format'
+import { formatRelativeDate, timeAgo } from '@/utils/format'
 
-function NotificationRow({ notification }: { notification: NotificationOut }) {
+function NotificationRow({ notification, onRead }: { notification: NotificationOut; onRead?: (n: NotificationOut) => void }) {
+  const unread = onRead !== undefined && !notification.read_at
   return (
-    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-[var(--color-bg)]">
+    <div
+      className={`flex items-start gap-3 px-4 py-3 rounded-xl ${unread ? 'bg-[#FFF7F2] ring-1 ring-[#FFD9C7] dark:bg-orange-500/[0.06] dark:ring-orange-500/20' : 'bg-[var(--color-bg)]'}`}
+    >
       <div className="mt-0.5">
         {notification.sent ? (
           <CheckCircle2 size={16} className="text-[var(--color-teal)]" />
@@ -22,7 +25,8 @@ function NotificationRow({ notification }: { notification: NotificationOut }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-[12.5px] font-semibold text-[var(--color-text)] truncate">
+          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" aria-label="Sin leer" />}
+          <p className={`text-[12.5px] text-[var(--color-text)] truncate ${unread ? 'font-bold' : 'font-semibold'}`}>
             {notification.subject || 'Sin asunto'}
           </p>
           <Badge variant={notification.sent ? 'green' : notification.send_error ? 'red' : 'gray'}>
@@ -35,10 +39,21 @@ function NotificationRow({ notification }: { notification: NotificationOut }) {
         {notification.send_error && (
           <p className="text-[11px] text-red-500 mt-1">{notification.send_error}</p>
         )}
-        {notification.sent_at && (
-          <p className="text-[10.5px] text-[var(--color-text-dim)] mt-1.5">{formatRelativeDate(notification.sent_at)}</p>
+        {(notification.created_at || notification.sent_at) && (
+          <p className="text-[10.5px] text-[var(--color-text-dim)] mt-1.5">
+            {notification.created_at ? timeAgo(notification.created_at) : formatRelativeDate(notification.sent_at as string)}
+          </p>
         )}
       </div>
+      {unread && (
+        <button
+          type="button"
+          onClick={() => onRead(notification)}
+          className="shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface)]"
+        >
+          Marcar como leída
+        </button>
+      )}
     </div>
   )
 }
@@ -82,22 +97,47 @@ export function NotificacionesSection() {
     }
   }
 
+  const markRead = (n: NotificationOut) => {
+    if (!accessToken) return
+    setMyNotifications((list) => list.map((x) => (x.public_id === n.public_id ? { ...x, read_at: new Date().toISOString() } : x)))
+    notificationsApi.markRead(accessToken, n.public_id).then(notifyNotificationsChanged).catch(() => undefined)
+  }
+
+  const markAll = () => {
+    if (!accessToken) return
+    setMyNotifications((list) => list.map((x) => ({ ...x, read_at: x.read_at ?? new Date().toISOString() })))
+    notificationsApi.markAllRead(accessToken).then(notifyNotificationsChanged).catch(() => undefined)
+  }
+
+  const unreadCount = myNotifications.filter((n) => !n.read_at).length
+
   if (isLoading) return <p className="text-[12.5px] text-[var(--color-text-dim)]">Cargando…</p>
   if (error) return <p className="text-[12.5px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>
 
   return (
-    <div className="animate-in flex flex-col gap-4 max-w-[900px]">
+    <div className="animate-in flex w-full min-w-0 flex-col gap-4">
       <Card>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <Bell size={16} className="text-[var(--color-primary)]" />
           <h2 className="text-[18px] font-bold tracking-tight text-[var(--color-text)]">Mis notificaciones</h2>
+          {unreadCount > 0 && <Badge variant="orange">{unreadCount} sin leer</Badge>}
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAll}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-bg)]"
+            >
+              <CheckCheck size={14} aria-hidden="true" />
+              Marcar todo como leído
+            </button>
+          )}
         </div>
         {myNotifications.length === 0 ? (
           <p className="text-[12px] text-[var(--color-text-dim)]">No tienes notificaciones registradas todavía.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {myNotifications.map((n) => (
-              <NotificationRow key={n.public_id} notification={n} />
+              <NotificationRow key={n.public_id} notification={n} onRead={markRead} />
             ))}
           </div>
         )}

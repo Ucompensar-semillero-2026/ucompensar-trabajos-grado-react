@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui'
 import { cn } from '@/utils/cn'
 import type { MonitoringSummary, RiskLevel } from '@/services/monitoring.service'
-import { RISK_META } from './monitoringUi'
+import { RISK_META } from './monitoringUi.utils'
 import { CIRCUMFERENCE, RADIUS, RISK_TONE, buildSlices } from './monitoringHelpers'
 
 interface AlertDistributionChartProps {

@@ -1,11 +1,12 @@
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
-import { getSectionMeta } from './sectionMeta'
+import { getSectionMeta, hidesTutorProjectHeader } from './sectionMeta'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { MonitoringHeroArt } from '@/components/seguimiento/MonitoringHeroArt'
 import { audienceOf } from '@/config/navLabels'
 import { DocumentsHeroArt } from '@/components/proceso/documentos/DocumentsHeroArt'
+import { GradeReportButton } from '@/components/proceso/documentos/GradeReportButton'
 import { MyDatesHeroArt } from '@/components/seguimiento/misfechas/MyDatesHeroArt'
 import { EXPEDIENTE_PATH } from '@/components/seguimiento/expediente/dossierHelpers'
 import { useAppStore } from '@/stores/app.store'
@@ -36,6 +37,8 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   )
   const activeSection = tutorSection?.section ?? (isStudent && activeItem.id === 'trazabilidad' ? 'tramites' : activeItem.id)
   const meta = getSectionMeta(activeSection, audienceOf(currentUser))
+  // «Mis tareas y calificaciones» (estudiante): el acceso al reporte general de notas va arriba a la derecha del encabezado.
+  const headerActions = isStudent && location.pathname === '/documentos' ? <GradeReportButton /> : undefined
 
   return (
     // .dashboard-shell activa los tokens de la identidad de Ingeniería (ver globals.css)
@@ -52,7 +55,7 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
         />
         <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-premium">
           {/* El expediente del estudiante trae su propio encabezado (volver, título y acciones). */}
-          {!EXPEDIENTE_PATH.test(location.pathname) && (<PageHeader title={meta.title} description={meta.description} showArt={meta.art} illustration={meta.illustration === 'monitoring' ? <MonitoringHeroArt /> : meta.illustration === 'documents' ? <DocumentsHeroArt /> : meta.illustration === 'dates' ? <MyDatesHeroArt /> : undefined} />)}
+          {!EXPEDIENTE_PATH.test(location.pathname) && !hidesTutorProjectHeader(location.pathname) && (<PageHeader title={meta.title} description={meta.description} showArt={meta.art} actions={headerActions} illustration={meta.illustration === 'monitoring' ? <MonitoringHeroArt /> : meta.illustration === 'documents' ? <DocumentsHeroArt /> : meta.illustration === 'dates' ? <MyDatesHeroArt /> : undefined} />)}
           <div className="animate-in">
             <Outlet />
           </div>

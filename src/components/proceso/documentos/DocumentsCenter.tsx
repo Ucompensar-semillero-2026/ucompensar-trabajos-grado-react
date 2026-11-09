@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom'
 import { CalendarDays, CheckCircle2, FileText, FolderOpen, History, Layers, X } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Card, EmptyState } from '@/components/ui'
-import { allDeliverables } from '../workPlanUi'
+import { allDeliverables, processLabel } from '../workPlanUi.utils'
 import { TaskSubmissionModal } from '../entrega/TaskSubmissionModal'
-import { AcademicProgressTimeline, ProcessOverview } from './ProcessOverview'
 import { DeliverablesTab } from './DeliverablesTab'
 import { CalendarMilestonesTab, ProcessDocumentsTab, VersionsHistoryTab } from './SecondaryTabs'
 import { NextActionCard, ProgressSummaryCard, RecentActivityCard } from './SummarySidebar'
 import { buildActivity, nextAction, processSummary } from './documentosHelpers'
 import { useDocumentsCenter } from './useDocumentsCenter'
+import { useDeliverableGrades } from './useDeliverableGrades'
 
 type TabId = 'entregables' | 'documentos' | 'versiones' | 'calendario'
 
@@ -33,10 +33,23 @@ export function DocumentsCenter() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [banner, setBanner] = useState<string | null>(null)
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({})
+  const deliverableGrades = useDeliverableGrades(selectedId) // columna NOTA: notas publicadas de criterios vinculados a entregables
 
   const next = useMemo(() => (plan ? nextAction(plan, drafts) : null), [plan, drafts])
   const activity = useMemo(() => (plan ? buildActivity(plan, history) : []), [plan, history])
   const summary = useMemo(() => (plan ? processSummary(plan) : null), [plan])
+  // Filtro «Periodo académico»: los periodos reales de los procesos del estudiante (academic_semester).
+  const periods = useMemo(() => [...new Set(processes.map((p) => p.academic_semester).filter(Boolean))].sort().reverse(), [processes])
+  const changePeriod = (period: string) => {
+    const target = processes.find((p) => p.academic_semester === period)
+    if (target && target.public_id !== selectedId) { setRowId(null); setSelectedId(target.public_id) }
+  }
+
+  // Proyecto, modalidad y estado general: antes iban en un bloque aparte; ahora se resumen bajo el título de la tabla.
+  const processOptions = useMemo(() => processes.map((p) => ({ value: p.public_id, label: processLabel(p) })), [processes])
+  const projectLine = plan
+    ? [plan.process_title?.trim() || (selected ? processLabel(selected) : 'Mi proyecto de grado'), selected?.modality.name, plan.process_state_name].filter(Boolean).join(' · ')
+    : ''
 
   const lookup = (id: string | null) => {
     if (!plan || !id) return null
@@ -97,8 +110,6 @@ export function DocumentsCenter() {
 
   return (
     <div className="flex flex-col gap-5">
-      <ProcessOverview processes={processes} selected={selected} selectedId={selectedId} onSelectProcess={(id) => { setRowId(null); setSelectedId(id) }} plan={plan} />
-      <AcademicProgressTimeline stages={plan.stages} />
 
       {banner && (
         <p role="status" className="flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
@@ -134,7 +145,7 @@ export function DocumentsCenter() {
           </div>
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0} className="p-4 outline-none sm:p-5">
             {tab === 'entregables' && (
-              <DeliverablesTab plan={plan} drafts={drafts} selectedId={rowId} defaultSemester={next?.stage.semester ?? null} onSelect={setRowId} onOpen={(id) => { setRowId(id); setOpenId(id) }} />
+              <DeliverablesTab plan={plan} drafts={drafts} selectedId={rowId} defaultSemester={next?.stage.semester ?? null} grades={deliverableGrades} periods={periods} period={selected?.academic_semester ?? null} onPeriodChange={changePeriod} projectLine={projectLine} processOptions={processOptions} processId={selectedId} onProcessChange={(id) => { setRowId(null); setSelectedId(id) }} onSelect={setRowId} onOpen={(id) => { setRowId(id); setOpenId(id) }} />
             )}
             {tab === 'documentos' && <ProcessDocumentsTab processId={selectedId} />}
             {tab === 'versiones' && <VersionsHistoryTab plan={plan} history={history} partial={auxState === 'partial'} loading={auxState === 'loading'} />}

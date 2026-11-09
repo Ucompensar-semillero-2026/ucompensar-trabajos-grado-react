@@ -236,8 +236,9 @@ describe('Documentos y entregables', () => {
 
     const card = within(await screen.findByRole('heading', { name: 'Propuesta inicial' }).then((h) => h.closest('article') as HTMLElement))
     expect(card.getByText(/Usa el formato institucional/)).toBeInTheDocument()
-    expect(card.getByRole('link', { name: /Descargar plantilla/ })).toHaveAttribute('href', 'https://files.example/formato.pdf?sig=9')
-    expect(card.getByRole('link', { name: /Descargar plantilla/ })).toHaveAttribute('rel', 'noopener noreferrer')
+    // La plantilla se ve y se descarga por el backend (VisorDocumento), no con la URL firmada.
+    expect(card.getByRole('button', { name: /Descargar plantilla: formato\.pdf/ })).toBeInTheDocument()
+    expect(card.getByRole('button', { name: 'Ver formato.pdf' })).toBeInTheDocument()
     expect(card.getByRole('button', { name: 'Abrir entrega de Propuesta inicial' })).toBeEnabled()
     expect(card.getByText('Disponible para entregar')).toBeInTheDocument()
     expect(card.getByText('Obligatorio')).toBeInTheDocument()

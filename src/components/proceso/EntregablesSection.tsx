@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, Download, FolderOpen, History, MessageSquareText, PanelRightOpen } from 'lucide-react'
-import { Badge, Button, Card, EmptyState } from '@/components/ui'
+import { CalendarClock, FolderOpen, History, MessageSquareText, PanelRightOpen } from 'lucide-react'
+import { Badge, Button, Card, EmptyState, LoadError, errorMessage } from '@/components/ui'
 import { useAppStore } from '@/stores/app.store'
-import { resolveFileUrl } from '@/services/http'
+import { filePaths } from '@/services/files.service'
+import { ArchivoAcciones } from '@/components/documentos/ArchivoAcciones'
 import {
   workPlanApi,
   type DeliverableOut,
@@ -12,14 +13,8 @@ import {
   type WorkPlanOut,
 } from '@/services/workplan.service'
 import { formatRelativeDate } from '@/utils/format'
-import {
-  DeliverableStatusBadge,
-  ProcessSelector,
-  allDeliverables,
-  formatCalendarDate,
-  stagesBySemester,
-  useStudentWorkPlan,
-} from './workPlanUi'
+import { DeliverableStatusBadge, ProcessSelector } from './workPlanUi'
+import { allDeliverables, formatCalendarDate, stagesBySemester, useStudentWorkPlan } from './workPlanUi.utils'
 import { TaskSubmissionModal } from './entrega/TaskSubmissionModal'
 import { DeliverButton } from './entrega/DeliverButton'
 
@@ -45,22 +40,27 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [showObservations, setShowObservations] = useState(false)
   const [history, setHistory] = useState<SubmissionOut[] | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
 
   const current = d.current_submission
   const dependency = d.depends_on_public_id ? allDeliverables(plan).find((x) => x.public_id === d.depends_on_public_id) : null
   const observations = current?.reviews ?? []
 
+  const loadHistory = async () => {
+    if (!accessToken) return
+    setHistoryError(null)
+    try {
+      setHistory(await workPlanApi.listSubmissions(accessToken, processId, d.public_id))
+    } catch (err) {
+      setHistoryError(errorMessage(err, 'No se pudo cargar el historial de versiones.'))
+    }
+  }
+
   const toggleHistory = async () => {
     const next = !showHistory
     setShowHistory(next)
-    if (next && history === null && accessToken) {
-      try {
-        setHistory(await workPlanApi.listSubmissions(accessToken, processId, d.public_id))
-      } catch {
-        setHistory([])
-      }
-    }
+    if (next && history === null) await loadHistory()
   }
 
   return (
@@ -90,10 +90,16 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
       </p>
 
       {d.template_download_url && (
-        <a href={resolveFileUrl(d.template_download_url)} target="_blank" rel="noopener noreferrer" className={downloadLinkClass(true)}>
-          <Download size={15} aria-hidden /> Descargar plantilla
-          {d.template_file_name && <span className="font-normal text-[var(--color-text-muted)]">({d.template_file_name})</span>}
-        </a>
+        <p className="flex flex-wrap items-center gap-3 text-[13px] text-[var(--color-text)]">
+          <span>Plantilla{d.template_file_name && <span className="text-[var(--color-text-muted)]"> ({d.template_file_name})</span>}</span>
+          <ArchivoAcciones
+            file={{ path: filePaths.template(processId, d.public_id), fileName: d.template_file_name ?? 'plantilla' }}
+            title={`Plantilla · ${d.title}`}
+            downloadLabel="Descargar plantilla"
+            linkClassName={downloadLinkClass(true)}
+            missing={d.template_missing}
+          />
+        </p>
       )}
 
       {current && (
@@ -102,9 +108,16 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
             {current.file_name} <span className="font-normal text-[var(--color-text-muted)]">· versión {current.version}</span>
           </p>
           <p className="text-[12px] text-[var(--color-text-muted)]">Entregado {formatRelativeDate(current.submitted_at)}</p>
-          <a href={resolveFileUrl(current.download_url)} target="_blank" rel="noopener noreferrer" className={`${downloadLinkClass()} mt-1`}>
-            <Download size={14} aria-hidden /> Descargar mi entrega
-          </a>
+          <span className="mt-1 inline-flex">
+            <ArchivoAcciones
+              file={{ path: filePaths.submission(processId, current.public_id), fileName: current.file_name }}
+              title={d.title}
+              version={current.version}
+              downloadLabel="Descargar mi entrega"
+              linkClassName={downloadLinkClass()}
+              missing={current.file_missing}
+            />
+          </span>
         </div>
       )}
 
@@ -196,7 +209,9 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
 
       {showHistory && (
         <ul className="flex flex-col gap-2 border-t border-[var(--color-border)] pt-3">
-          {history === null ? (
+          {historyError ? (
+            <li><LoadError message={historyError} onRetry={() => void loadHistory()} /></li>
+          ) : history === null ? (
             <li className="text-[12px] text-[var(--color-text-muted)]">Cargando historial…</li>
           ) : (
             history.map((s) => (
@@ -206,9 +221,13 @@ function DeliverableCard({ deliverable: d, stage, plan, processId, onChanged }: 
                 </span>
                 <span className="flex items-center gap-3">
                   <DeliverableStatusBadge status={s.status} />
-                  <a href={resolveFileUrl(s.download_url)} target="_blank" rel="noopener noreferrer" className={downloadLinkClass()}>
-                    Descargar
-                  </a>
+                  <ArchivoAcciones
+                    file={{ path: filePaths.submission(processId, s.public_id), fileName: s.file_name }}
+                    title={d.title}
+                    version={s.version}
+                    linkClassName={downloadLinkClass()}
+                    missing={s.file_missing}
+                  />
                 </span>
               </li>
             ))

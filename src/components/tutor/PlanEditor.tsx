@@ -11,7 +11,7 @@ import {
   type StageOut,
   type WorkPlanOut,
 } from '@/services/workplan.service'
-import { DeliverableStatusBadge, formatCalendarDate } from '@/components/proceso/workPlanUi'
+import { formatCalendarDate } from '@/components/proceso/workPlanUi.utils'
 
 const inputClass =
   'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[#0876B9]'
@@ -66,7 +66,7 @@ function Alert({ message }: { message: string | null }) {
 
 // ── Crear el plan ─────────────────────────────────────────────────────────────
 
-function CreatePlanForm({ processId, onPlan }: { processId: string; onPlan: (p: WorkPlanOut) => void }) {
+export function CreatePlanForm({ processId, onPlan }: { processId: string; onPlan: (p: WorkPlanOut) => void }) {
   const { busy, error, run } = useMutation(processId, onPlan)
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
@@ -114,7 +114,7 @@ function CreatePlanForm({ processId, onPlan }: { processId: string; onPlan: (p: 
 
 // ── Fechas del plan y publicación ─────────────────────────────────────────────
 
-function PlanHeader({ plan, processId, onPlan }: { plan: WorkPlanOut; processId: string; onPlan: (p: WorkPlanOut) => void }) {
+export function PlanHeader({ plan, processId, onPlan }: { plan: WorkPlanOut; processId: string; onPlan: (p: WorkPlanOut) => void }) {
   const dates = useMutation(processId, onPlan)
   const publish = useMutation(processId, onPlan)
   const [start, setStart] = useState(plan.start_date ?? '')
@@ -171,19 +171,20 @@ function PlanHeader({ plan, processId, onPlan }: { plan: WorkPlanOut; processId:
 
 // ── Entregables ───────────────────────────────────────────────────────────────
 
-function DeliverableEditor({
+export function DeliverableForm({
   deliverable,
   siblings,
   processId,
   onPlan,
+  onDone,
 }: {
   deliverable: DeliverableOut
   siblings: DeliverableOut[]
   processId: string
   onPlan: (p: WorkPlanOut) => void
+  onDone: () => void
 }) {
   const { busy, error, run } = useMutation(processId, onPlan)
-  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(deliverable.title)
   const [instructions, setInstructions] = useState(deliverable.instructions ?? '')
   const [mandatory, setMandatory] = useState(deliverable.mandatory)
@@ -206,36 +207,11 @@ function DeliverableEditor({
       accepted_extensions: formats.length ? formats : null,
       escalate_group: escalate,
     }
-    if (await run((t) => workPlanApi.updateDeliverable(t, processId, deliverable.public_id, body))) setOpen(false)
+    if (await run((t) => workPlanApi.updateDeliverable(t, processId, deliverable.public_id, body))) onDone()
   }
 
   return (
-    <li className="py-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-[var(--color-text)]">
-            {deliverable.title}{' '}
-            {!deliverable.mandatory && <span className="text-[12px] font-normal text-[var(--color-text-muted)]">(opcional)</span>}
-            {!deliverable.applicable && <span className="text-[12px] font-normal text-[var(--color-text-muted)]"> · No aplica</span>}
-            {!deliverable.active && <span className="text-[12px] font-normal text-[var(--color-text-muted)]"> · Desactivado</span>}
-          </p>
-          <p className="text-[12px] text-[var(--color-text-muted)]">Fecha límite: {formatCalendarDate(deliverable.due_date)}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DeliverableStatusBadge status={deliverable.status} />
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="text-[13px] font-semibold text-[#0876B9] underline underline-offset-4"
-          >
-            {open ? 'Cerrar' : 'Editar'}
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div className="mt-3 grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+    <div className="grid gap-3">
           <Field label="Título" htmlFor={`t-${deliverable.public_id}`}>
             <input id={`t-${deliverable.public_id}`} value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
           </Field>
@@ -279,12 +255,10 @@ function DeliverableEditor({
             <Alert message={error} />
           </div>
         </div>
-      )}
-    </li>
   )
 }
 
-function NewDeliverableForm({ stage, processId, onPlan }: { stage: StageOut; processId: string; onPlan: (p: WorkPlanOut) => void }) {
+export function NewDeliverableForm({ stage, processId, onPlan }: { stage: StageOut; processId: string; onPlan: (p: WorkPlanOut) => void }) {
   const { busy, error, run } = useMutation(processId, onPlan)
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
@@ -329,40 +303,15 @@ function NewDeliverableForm({ stage, processId, onPlan }: { stage: StageOut; pro
   )
 }
 
-function StageCard({ stage, plan, processId, onPlan }: { stage: StageOut; plan: WorkPlanOut; processId: string; onPlan: (p: WorkPlanOut) => void }) {
+export function StageForm({ stage, processId, onPlan, onDone }: { stage: StageOut; processId: string; onPlan: (p: WorkPlanOut) => void; onDone: () => void }) {
   const { busy, error, run } = useMutation(processId, onPlan)
-  const [editing, setEditing] = useState(false)
   const [name, setName] = useState(stage.name)
   const [description, setDescription] = useState(stage.description ?? '')
   const [semester, setSemester] = useState(stage.semester)
-  const all = plan.stages.flatMap((s) => s.deliverables)
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h4 className="text-[17px] font-bold text-[var(--color-text)]">
-            {stage.name} {!stage.active && <span className="text-[12px] font-normal text-[var(--color-text-muted)]">· Desactivada</span>}
-          </h4>
-          {stage.description && <p className="mt-0.5 text-[13px] text-[var(--color-text-muted)]">{stage.description}</p>}
-        </div>
-        <div className="flex items-center gap-3 text-[13px] font-semibold">
-          <button type="button" onClick={() => setEditing((v) => !v)} aria-expanded={editing} className="text-[#0876B9] underline underline-offset-4">
-            {editing ? 'Cerrar' : 'Editar etapa'}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run((t) => workPlanApi.updateStage(t, processId, stage.public_id, { active: !stage.active }))}
-            className="text-[var(--color-text-muted)] underline underline-offset-4"
-          >
-            {stage.active ? 'Desactivar' : 'Activar'}
-          </button>
-        </div>
-      </div>
-
-      {editing && (
-        <div className="mt-3 grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+    <>
+        <div className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
           <Field label="Nombre de la etapa" htmlFor={`sn-${stage.public_id}`}>
             <input id={`sn-${stage.public_id}`} value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
           </Field>
@@ -378,40 +327,23 @@ function StageCard({ stage, plan, processId, onPlan }: { stage: StageOut; plan: 
               size="sm"
               disabled={busy || !name.trim()}
               onClick={async () => {
-                if (await run((t) => workPlanApi.updateStage(t, processId, stage.public_id, { name, description: description || null, semester }))) setEditing(false)
+                if (await run((t) => workPlanApi.updateStage(t, processId, stage.public_id, { name, description: description || null, semester }))) onDone()
               }}
             >
               Guardar etapa
             </Button>
           </div>
         </div>
-      )}
       <Alert message={error} />
-
-      <ul className="mt-3 divide-y divide-[var(--color-border)]">
-        {stage.deliverables.map((d) => (
-          <DeliverableEditor key={d.public_id} deliverable={d} siblings={all} processId={processId} onPlan={onPlan} />
-        ))}
-      </ul>
-      {stage.deliverables.length === 0 && <p className="mt-3 text-[13px] text-[var(--color-text-muted)]">Esta etapa aún no tiene entregables.</p>}
-      <NewDeliverableForm stage={stage} processId={processId} onPlan={onPlan} />
-    </Card>
+    </>
   )
 }
 
-function AddStageForm({ processId, onPlan }: { processId: string; onPlan: (p: WorkPlanOut) => void }) {
+export function AddStageForm({ processId, onPlan, onClose }: { processId: string; onPlan: (p: WorkPlanOut) => void; onClose: () => void }) {
   const { busy, error, run } = useMutation(processId, onPlan)
-  const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [semester, setSemester] = useState(1)
 
-  if (!open) {
-    return (
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-        <Plus size={16} aria-hidden /> Agregar etapa
-      </Button>
-    )
-  }
   return (
     <Card>
       <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
@@ -430,30 +362,15 @@ function AddStageForm({ processId, onPlan }: { processId: string; onPlan: (p: Wo
           onClick={async () => {
             if (await run((t) => workPlanApi.createStage(t, processId, { name, semester }))) {
               setName('')
-              setOpen(false)
+              onClose()
             }
           }}
         >
           {busy ? 'Creando…' : 'Crear etapa'}
         </Button>
-        <button type="button" onClick={() => setOpen(false)} className="text-[13px] text-[var(--color-text-muted)] underline">Cancelar</button>
+        <button type="button" onClick={() => onClose()} className="text-[13px] text-[var(--color-text-muted)] underline">Cancelar</button>
         <Alert message={error} />
       </div>
     </Card>
-  )
-}
-
-export function PlanEditor({ plan, processId, onPlan }: { plan: WorkPlanOut | null; processId: string; onPlan: (p: WorkPlanOut) => void }) {
-  if (!plan) return <CreatePlanForm processId={processId} onPlan={onPlan} />
-  return (
-    <div className="flex flex-col gap-5">
-      <PlanHeader plan={plan} processId={processId} onPlan={onPlan} />
-      {plan.stages.map((stage) => (
-        <StageCard key={stage.public_id} stage={stage} plan={plan} processId={processId} onPlan={onPlan} />
-      ))}
-      <div>
-        <AddStageForm processId={processId} onPlan={onPlan} />
-      </div>
-    </div>
   )
 }

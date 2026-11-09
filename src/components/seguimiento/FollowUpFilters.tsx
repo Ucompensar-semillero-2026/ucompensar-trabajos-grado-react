@@ -3,7 +3,7 @@ import { ChevronDown, FilterX, Search } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { cn } from '@/utils/cn'
 import type { CommitmentStatus, RiskLevel, StudentFilters } from '@/services/monitoring.service'
-import { RISK_META } from './monitoringUi'
+import { RISK_META } from './monitoringUi.utils'
 
 const COMMITMENT_FILTERS: Array<{ value: CommitmentStatus | 'vencido'; label: string }> = [
   { value: 'pendiente', label: 'Compromiso pendiente' }, { value: 'en_seguimiento', label: 'En seguimiento' }, { value: 'vencido', label: 'Compromiso vencido' },
