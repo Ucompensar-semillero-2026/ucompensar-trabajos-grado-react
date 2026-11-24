@@ -7,6 +7,7 @@ import { ApiError } from '@/services/http'
 import { documentsApi, type ProcessDocumentOut } from '@/services/documents.service'
 import { processesApi } from '@/services/processes.service'
 import { formatRelativeDate } from '@/utils/format'
+import { mapSettledLimit, withRetry } from '@/utils/concurrency'
 import { DocumentViewerModal, type ViewerDocument } from './DocumentViewerModal'
 import { DownloadFileButton } from './ArchivoAcciones'
 import { filePaths } from '@/services/files.service'
@@ -52,8 +53,9 @@ export function DocumentosSection() {
     processesApi
       .list(accessToken)
       .then(async (processes) => {
-        const perProcess = await Promise.all(
-          processes.map(async (p) => {
+        // Máx. 4 trámites a la vez y con reintento: una petición por proceso en simultáneo saturaba la API (500 al azar).
+        const settled = await mapSettledLimit(processes, 4, (p) =>
+          withRetry(async () => {
             // Revisar depende del trámite: allowed_actions de su detalle (contrato 6.1).
             const [docs, detail] = await Promise.all([
               documentsApi.listForProcess(accessToken, p.public_id),
@@ -63,6 +65,14 @@ export function DocumentosSection() {
             return docs.map((d) => ({ ...d, studentName: p.student.full_name, canReview }))
           })
         )
+        const perProcess = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+        const failed = settled.length - perProcess.length
+        // Si fallan todos, se muestra el error; si solo algunos, se listan los demás y se avisa.
+        if (failed > 0 && perProcess.length === 0) {
+          const first = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+          throw first?.reason
+        }
+        if (failed > 0) setError(`No se pudieron cargar los documentos de ${failed} trámite(s). Pulsa «Actualizar» para reintentar.`)
         setRows(perProcess.flat().sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()))
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'No se pudieron cargar los documentos'))

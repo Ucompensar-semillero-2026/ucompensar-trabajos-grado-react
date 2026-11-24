@@ -2,6 +2,7 @@ import { processesApi, type ProcessDetailOut, type ProcessHistoryOut, type Proce
 import { documentsApi, type ChecklistItemOut, type ProcessDocumentOut } from './documents.service'
 import type { PossibleStateOut } from '@/types/api'
 import { ApiError } from './http'
+import { mapSettledLimit, withRetry } from '@/utils/concurrency'
 import { workPlanApi, type SubmissionOut, type WorkPlanOut } from './workplan.service'
 
 export interface TrazabilidadProcessRow {
@@ -41,11 +42,15 @@ export interface EtapaPlanTrazabilidad {
 
 export async function listarProcesosTrazabilidad(accessToken: string): Promise<TrazabilidadProcessRow[]> {
   const processes = await processesApi.list(accessToken)
-  return Promise.all(processes.map(async (process) => {
-    const team = await processesApi.team(accessToken, process.public_id)
-    const tutor = team.find((member) => member.active && member.process_role === 'tutor')?.user.full_name ?? null
-    return { process, tutor }
-  }))
+  // Máx. 4 consultas de equipo a la vez y con reintento; si una falla, el trámite se lista sin tutor en vez de romper la pantalla.
+  const settled = await mapSettledLimit(processes, 4, async (process) => {
+    const team = await withRetry(() => processesApi.team(accessToken, process.public_id))
+    return team.find((member) => member.active && member.process_role === 'tutor')?.user.full_name ?? null
+  })
+  return processes.map((process, i) => {
+    const r = settled[i]
+    return { process, tutor: r.status === 'fulfilled' ? r.value : null }
+  })
 }
 
 export async function cargarDetalleTrazabilidad(accessToken: string, processId: string): Promise<TrazabilidadDetailData> {
@@ -383,13 +388,23 @@ export function processToTramite(process: ProcessOut, tutor: { public_id: string
   }
 }
 
+async function listarTramitesReales(accessToken: string): Promise<TramiteTrazabilidad[]> {
+  const processes = await processesApi.list(accessToken)
+  // Máx. 4 consultas de equipo a la vez y con reintento; si una falla, el trámite aparece sin tutor.
+  const settled = await mapSettledLimit(processes, 4, async (process) => {
+    const team = await withRetry(() => processesApi.team(accessToken, process.public_id))
+    const tutor = team.find((member) => member.active && member.process_role === 'tutor')?.user
+    return tutor ? { public_id: tutor.public_id, full_name: tutor.full_name } : null
+  })
+  return processes.map((process, i) => {
+    const r = settled[i]
+    return processToTramite(process, r.status === 'fulfilled' ? r.value : null)
+  })
+}
+
 export async function listarTramites(filtros: FiltrosTramites = {}, accessToken?: string): Promise<TramiteTrazabilidad[]> {
   const real = accessToken
-    ? await Promise.all((await processesApi.list(accessToken)).map(async (process) => {
-        const team = await processesApi.team(accessToken, process.public_id)
-        const assignedTutor = team.find((member) => member.active && member.process_role === 'tutor')?.user
-        return processToTramite(process, assignedTutor ? { public_id: assignedTutor.public_id, full_name: assignedTutor.full_name } : null)
-      }))
+    ? await listarTramitesReales(accessToken)
     : []
   const query = filtros.busqueda?.trim().toLocaleLowerCase('es-CO') ?? ''
   return [...real, ...tramitesMock.map((item) => ({ ...item, isDemo: true }))].filter((item) => {
